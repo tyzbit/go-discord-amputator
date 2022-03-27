@@ -124,7 +124,7 @@ func guildCreate(s *discordgo.Session, g *discordgo.GuildCreate) {
 }
 
 func updateServersWatched(s *discordgo.Session, serverCount int) {
-	logrus.Debug("watching ", serverCount, " servers")
+	logrus.Info("watching ", serverCount, " servers")
 	usd := &discordgo.UpdateStatusData{Status: "online"}
 	usd.Activities = make([]*discordgo.Activity, 1)
 	usd.Activities[0] = &discordgo.Activity{
