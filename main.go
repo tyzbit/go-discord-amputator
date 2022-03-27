@@ -92,7 +92,7 @@ func main() {
 	}
 	bot, botError := bot.updateOrInitializeBotStats()
 	if botError != nil {
-		logrus.Warn("unable to set up stats: ", err)
+		logrus.Warn("unable to set up stats: ", botError)
 		bot.dbConnected = false
 	}
 
