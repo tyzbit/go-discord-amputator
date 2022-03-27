@@ -1,0 +1,36 @@
+version: "3.9"
+    
+services:
+  db:
+    image: mariadb:10.7
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    ports:
+      - 3306:3306
+    environment:
+      MARIADB_ROOT_PASSWORD: amputateroot
+      MARIADB_DATABASE: go_amputator
+      MARIADB_USER: goamputate
+      MARIADB_PASSWORD: goamputate
+    
+  go-discord-amputator:
+    build: .
+    depends_on:
+      - db
+    restart: always
+    environment:
+      DB_HOST: db
+      DB_USER: goamputate
+      DB_PASSWORD: goamputate
+      DB_NAME: go_amputator
+      ADMINISTRATOR_IDS: ${ADMINISTRATOR_IDS}
+      AUTOMATICALLY_AMPUTATE: ${AUTOMATICALLY_AMPUTATE}
+      GUESS_AND_CHECK: ${GUESS_AND_CHECK}
+      LOG_LEVEL: ${LOG_LEVEL}
+      MAX_DEPTH: ${MAX_DEPTH}
+      TOKEN: ${TOKEN}
+volumes:
+  db_data: {}
+  wordpress_data: {}
+

@@ -1,18 +1,19 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"os/signal"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
-	"github.com/mvdan/xurls"
 	"github.com/sirupsen/logrus"
-	goamputate "github.com/tyzbit/go-amputate"
 )
 
 const (
@@ -23,30 +24,26 @@ const (
 const (
 	adminIds              string = "ADMINISTRATOR_IDS"
 	automaticallyAmputate string = "AUTOMATICALLY_AMPUTATE"
+	botId                 string = "BOT_ID"
+	dbHost                string = "DB_HOST"
+	dbName                string = "DB_NAME"
+	dbPassword            string = "DB_PASSWORD"
+	dbUser                string = "DB_USER"
 	guessAndCheck         string = "GUESS_AND_CHECK"
 	logLevel              string = "LOG_LEVEL"
 	maxDepth              string = "MAX_DEPTH"
 	token                 string = "TOKEN"
 )
 
-const (
-	messagesSeen        string = "Messages Seen"
-	messagesActedOn     string = "Messages Acted On"
-	messagesSent        string = "Messages Sent"
-	callsToAmputatorApi string = "Calls to Amputator API"
-	urlsAmputated       string = "URLs Amputated"
-	serversWatched      string = "Servers Watched"
-)
-
 var (
 	env   map[string]string
-	stats map[string]int = map[string]int{
-		messagesSeen:        0,
-		messagesActedOn:     0,
-		messagesSent:        0,
-		callsToAmputatorApi: 0,
-		urlsAmputated:       0,
-		serversWatched:      0,
+	stats = map[string]int{
+		"messagesSeen":        0,
+		"messagesActedOn":     0,
+		"messagesSent":        0,
+		"callsToAmputatorApi": 0,
+		"urlsAmputated":       0,
+		"serversWatched":      0,
 	}
 )
 
@@ -75,6 +72,30 @@ func init() {
 }
 
 func main() {
+	dbConnected := true
+	dsn := fmt.Sprintf("%v:%v@tcp(%v)/%v", env[dbUser], env[dbPassword], env[dbHost], env[dbName])
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		dbConnected = false
+	}
+	defer db.Close()
+
+	id, err := strconv.Atoi(env[botId])
+	if err != nil {
+		id = 1
+	}
+	bot := amputatorBot{
+		dbConnected:  dbConnected,
+		dbConnection: db,
+		id:           id,
+		stats:        stats,
+	}
+	bot, botError := bot.updateOrInitializeBotStats()
+	if botError != nil {
+		logrus.Warn("unable to set up stats: ", err)
+		bot.dbConnected = false
+	}
+
 	// Create a new Discord session using the provided bot token.
 	dg, err := discordgo.New("Bot " + env[token])
 	if err != nil {
@@ -83,9 +104,9 @@ func main() {
 		return
 	}
 
-	dg.AddHandler(botReady)
-	dg.AddHandler(guildCreate)
-	dg.AddHandler(messageCreate)
+	dg.AddHandler(bot.botReady)
+	dg.AddHandler(bot.guildCreate)
+	dg.AddHandler(bot.messageCreate)
 
 	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsDirectMessages
 
@@ -107,36 +128,21 @@ func main() {
 	dg.Close()
 }
 
-func botReady(s *discordgo.Session, r *discordgo.Ready) {
-	stats[serversWatched] = len(s.State.Guilds)
-	updateServersWatched(s, stats[serversWatched])
+func (bot amputatorBot) botReady(s *discordgo.Session, r *discordgo.Ready) {
+	bot.stats["serversWatched"] = len(s.State.Guilds)
+	bot.updateServersWatched(s, bot.stats["serversWatched"])
 }
 
-func guildCreate(s *discordgo.Session, g *discordgo.GuildCreate) {
-	stats[serversWatched] = len(s.State.Guilds)
-	updateServersWatched(s, stats[serversWatched])
-}
-
-func updateServersWatched(s *discordgo.Session, serverCount int) {
-	logrus.Info("watching ", serverCount, " servers")
-	usd := &discordgo.UpdateStatusData{Status: "online"}
-	usd.Activities = make([]*discordgo.Activity, 1)
-	usd.Activities[0] = &discordgo.Activity{
-		Name: fmt.Sprintf("%v servers", serverCount),
-		Type: discordgo.ActivityTypeWatching,
-		URL:  "https://github.com/tyzbit/go-discord-amputator",
-	}
-
-	err := s.UpdateStatusComplex(*usd)
-	if err != nil {
-		logrus.Error("failed to set status: ", err)
-	}
+func (bot amputatorBot) guildCreate(s *discordgo.Session, g *discordgo.GuildCreate) {
+	bot.stats["serversWatched"] = len(s.State.Guilds)
+	bot.updateServersWatched(s, bot.stats["serversWatched"])
 }
 
 // This function will be called (due to AddHandler above) every time a new
 // message is created on any channel that the authenticated bot has access to.
-func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	stats[messagesSeen]++
+func (bot amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+	bot.stats["messagesSeen"]++
+	bot.updateMessagesSeen(bot.stats["messagesSeen"])
 
 	// Ignore all messages created by the bot itself
 	// This isn't required in this specific example but it's a good practice.
@@ -148,8 +154,9 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.GuildID == "" {
 		if strings.HasPrefix(m.Content, "!stats") {
 			logrus.Debug("!stats called by ", m.Author.Username, " id: ", m.Author.ID)
-			stats[messagesActedOn]++
-			go handleMessageWithStats(s, m)
+			bot.stats["messagesActedOn"]++
+			bot.updateMessagesActedOn(bot.stats["messagesActedOn"])
+			go bot.handleMessageWithStats(s, m)
 			return
 		}
 	}
@@ -160,122 +167,13 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if obj == true {
 		logrus.Debug("message appears to have an AMP URL")
 		if env[automaticallyAmputate] != "" {
-			stats[messagesActedOn]++
-			go handleMessageWithAmpUrls(s, m)
+			bot.stats["messagesActedOn"]++
+			bot.updateMessagesActedOn(bot.stats["messagesActedOn"])
+			go bot.handleMessageWithAmpUrls(s, m)
 			return
 		} else {
 			logrus.Info("URLs were not amputated because ", automaticallyAmputate, " was not set")
 			return
 		}
-	}
-}
-
-// handleMessageWithStats takes a discord session and a user ID and sends a
-// message to the user with stats about the bot.
-func handleMessageWithStats(s *discordgo.Session, m *discordgo.MessageCreate) {
-	administrator := false
-	for _, id := range strings.Split(env[adminIds], ",") {
-		if m.Author.ID == id {
-			administrator = true
-		}
-	}
-
-	if administrator {
-		formattedStats := ""
-		for stat, value := range stats {
-			formattedStats = fmt.Sprintf("%v\n%v: %v", formattedStats, stat, value)
-		}
-
-		stats[messagesSent]++
-		embed := &discordgo.MessageEmbed{
-			Title:       "Amputation Stats",
-			Description: formattedStats,
-		}
-
-		logrus.Debug("sending !stats response to ", m.Author.Username, "(", m.Author.ID, ")")
-		_, err := s.ChannelMessageSendEmbed(m.ChannelID, embed)
-		if err != nil {
-			logrus.Error("unable to send embed: ", err)
-		}
-	} else {
-		logrus.Debug("did not respond to ", m.Author.Username, " id ", m.Author.ID, " because user is not an administrator")
-	}
-}
-
-// handleMessageWithAmpUrls takes a Discord session and a message string and
-// calls go-amputator with a []string of URLs parsed from the message.
-// It then sends an embed with the resulting amputated URLs.
-func handleMessageWithAmpUrls(s *discordgo.Session, m *discordgo.MessageCreate) {
-	xurlsRelaxed := xurls.Strict
-	urls := xurlsRelaxed.FindAllString(m.Content, -1)
-	if len(urls) == 0 {
-		logrus.Debug("found 0 URLs in message that matched amp regex: ", ampRegex)
-		return
-	}
-
-	logrus.Debug("URLs parsed from message: ", strings.Join(urls, ", "))
-
-	var bot goamputate.AmputatorBot
-	options := map[string]string{}
-
-	// Read environment options and set parameters appropriately
-	if env[guessAndCheck] != "" {
-		options["gac"] = env[guessAndCheck]
-	}
-	if env[maxDepth] != "" {
-		options["md"] = env[maxDepth]
-	}
-
-	genericLinkAmputationFailureMessage := &discordgo.MessageEmbed{
-		Title:       "Problem Amputating",
-		Description: "Sorry, I couldn't amputate that link.",
-	}
-	stats[callsToAmputatorApi]++
-	amputatedLinks, err := bot.Amputate(urls, options)
-	if err != nil {
-		logrus.Error("error calling Amputator API: ", err)
-		stats[messagesSent]++
-		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
-		if err != nil {
-			logrus.Error("unable to send embed: ", err)
-		}
-		return
-	}
-
-	if len(amputatedLinks) == 0 {
-		logrus.Warn("amputator bot returned no Amputated URLs from: ", strings.Join(urls, ", "))
-		stats[messagesSent]++
-		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
-		if err != nil {
-			logrus.Error("unable to send embed: ", err)
-		}
-		return
-	}
-	stats[urlsAmputated] = stats[urlsAmputated] + len(amputatedLinks)
-
-	plural := ""
-	if len(amputatedLinks) > 1 {
-		plural = "s"
-	}
-
-	title := fmt.Sprintf("Amputated Link%v", plural)
-
-	embed := &discordgo.MessageEmbed{
-		Title:       title,
-		Description: strings.Join(amputatedLinks, "\n"),
-	}
-	stats[messagesSent]++
-	guild, err := s.Guild(m.GuildID)
-	guildName := "unknown"
-	if err != nil {
-		logrus.Warn("couldn't get guild for ID ", m.GuildID)
-	}
-	if guild.Name != "" {
-		guildName = guild.Name
-	}
-	logrus.Debug("sending amputate message response in ", guildName, "(", m.GuildID, "), calling user: ", m.Author.Username, "(", m.Author.ID, ")")
-	_, err = s.ChannelMessageSendEmbed(m.ChannelID, embed)
-	if err != nil {
-		logrus.Error("unable to send embed: ", err)
 	}
 }
