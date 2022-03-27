@@ -12,7 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/mvdan/xurls"
 	"github.com/sirupsen/logrus"
-	amputate "github.com/tyzbit/go-amputate"
+	goamputate "github.com/tyzbit/go-amputate"
 )
 
 const (
@@ -218,7 +218,7 @@ func handleMessageWithAmpUrls(s *discordgo.Session, m *discordgo.MessageCreate) 
 
 	logrus.Debug("URLs parsed from message: ", strings.Join(urls, ", "))
 
-	var bot amputate.AmputatorBot
+	var bot goamputate.AmputatorBot
 	options := map[string]string{}
 
 	// Read environment options and set parameters appropriately
