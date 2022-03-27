@@ -89,13 +89,8 @@ func main() {
 		return
 	}
 
-	// Register the botReady func as a callback for Ready events
 	dg.AddHandler(botReady)
-
-	// Register guildCreate func as a callback for GuildCreate events
 	dg.AddHandler(guildCreate)
-
-	// Register the messageCreate func as a callback for MessageCreate events.
 	dg.AddHandler(messageCreate)
 
 	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsDirectMessages
@@ -129,6 +124,7 @@ func guildCreate(s *discordgo.Session, g *discordgo.GuildCreate) {
 }
 
 func updateServersWatched(s *discordgo.Session, serverCount int) {
+	logrus.Debug("watching ", serverCount, " servers")
 	usd := &discordgo.UpdateStatusData{Status: "online"}
 	usd.Activities = make([]*discordgo.Activity, 1)
 	usd.Activities[0] = &discordgo.Activity{
@@ -139,7 +135,7 @@ func updateServersWatched(s *discordgo.Session, serverCount int) {
 
 	err := s.UpdateStatusComplex(*usd)
 	if err != nil {
-		logrus.Error("Failed to set status: %v", err)
+		logrus.Error("failed to set status: %v", err)
 	}
 }
 
@@ -171,7 +167,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		logrus.Debug("message appears to have an AMP URL")
 		if env[automaticallyAmputate] != "" {
 			stats[messagesActedOn]++
-			go handleMessageWithAmpUrls(s, m.Content, m.ChannelID)
+			go handleMessageWithAmpUrls(s, m)
 			return
 		} else {
 			logrus.Info("URLs were not amputated because ", automaticallyAmputate, " was not set")
@@ -201,7 +197,8 @@ func handleMessageWithStats(s *discordgo.Session, m *discordgo.MessageCreate) {
 			Title:       "Amputation Stats",
 			Description: formattedStats,
 		}
-		logrus.Debug("responding to ", m.Author.Username, " id ", m.Author.ID)
+
+		logrus.Debug("sending !stats response to ", m.Author.Username, "(", m.Author.ID, ")")
 		s.ChannelMessageSendEmbed(m.ChannelID, embed)
 	} else {
 		logrus.Debug("did not respond to ", m.Author.Username, " id ", m.Author.ID, " because user is not an administrator")
@@ -211,9 +208,9 @@ func handleMessageWithStats(s *discordgo.Session, m *discordgo.MessageCreate) {
 // handleMessageWithAmpUrls takes a Discord session and a message string and
 // calls go-amputator with a []string of URLs parsed from the message
 // It then sends an embed with the resulting amputated URLs.
-func handleMessageWithAmpUrls(s *discordgo.Session, message string, channelId string) {
+func handleMessageWithAmpUrls(s *discordgo.Session, m *discordgo.MessageCreate) {
 	xurlsRelaxed := xurls.Strict
-	urls := xurlsRelaxed.FindAllString(message, -1)
+	urls := xurlsRelaxed.FindAllString(m.Content, -1)
 	if len(urls) == 0 {
 		logrus.Debug("found 0 URLs in message that matched amp regex: ", ampRegex)
 		return
@@ -241,14 +238,14 @@ func handleMessageWithAmpUrls(s *discordgo.Session, message string, channelId st
 	if err != nil {
 		logrus.Error("error calling Amputator API: ", err)
 		stats[messagesSent]++
-		s.ChannelMessageSendEmbed(channelId, genericLinkAmputationFailureMessage)
+		s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
 		return
 	}
 
 	if len(amputatedLinks) == 0 {
 		logrus.Warn("amputator bot returned no Amputated URLs from: ", strings.Join(urls, ", "))
 		stats[messagesSent]++
-		s.ChannelMessageSendEmbed(channelId, genericLinkAmputationFailureMessage)
+		s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
 		return
 	}
 	stats[urlsAmputated] = stats[urlsAmputated] + len(amputatedLinks)
@@ -265,5 +262,14 @@ func handleMessageWithAmpUrls(s *discordgo.Session, message string, channelId st
 		Description: strings.Join(amputatedLinks, "\n"),
 	}
 	stats[messagesSent]++
-	s.ChannelMessageSendEmbed(channelId, embed)
+	guild, err := s.Guild(m.GuildID)
+	guildName := "unknown"
+	if err != nil {
+		logrus.Warn("couldn't get guild for ID ", m.GuildID)
+	}
+	if guild.Name != "" {
+		guildName = guild.Name
+	}
+	logrus.Debug("sending amputate message response in ", guildName, "(", m.GuildID, "), calling user: ", m.Author.Username, "(", m.Author.ID, ")")
+	s.ChannelMessageSendEmbed(m.ChannelID, embed)
 }
