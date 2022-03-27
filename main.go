@@ -37,6 +37,7 @@ const (
 	messagesSent        string = "Messages Sent"
 	callsToAmputatorApi string = "Calls to Amputator API"
 	urlsAmputated       string = "URLs Amputated"
+	serversWatched      string = "Servers Watched"
 )
 
 var (
@@ -47,6 +48,7 @@ var (
 		messagesSent:        0,
 		callsToAmputatorApi: 0,
 		urlsAmputated:       0,
+		serversWatched:      0,
 	}
 )
 
@@ -90,7 +92,10 @@ func main() {
 	// Register the messageCreate func as a callback for MessageCreate events.
 	dg.AddHandler(messageCreate)
 
-	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsDirectMessages // | discordgo.IntentsGuildMembers
+	dg.AddHandler(botReady)
+	dg.AddHandler(guildCreate)
+
+	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsDirectMessages
 
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
@@ -108,6 +113,31 @@ func main() {
 
 	// Cleanly close down the Discord session.
 	dg.Close()
+}
+
+func botReady(s *discordgo.Session, r *discordgo.Ready) {
+	stats[serversWatched] = len(s.State.Guilds)
+	updateServersWatched(s, stats[serversWatched])
+}
+
+func guildCreate(s *discordgo.Session, g *discordgo.GuildCreate) {
+	stats[serversWatched] = len(s.State.Guilds)
+	updateServersWatched(s, stats[serversWatched])
+}
+
+func updateServersWatched(s *discordgo.Session, serverCount int) {
+	usd := &discordgo.UpdateStatusData{Status: "online"}
+	usd.Activities = make([]*discordgo.Activity, 1)
+	usd.Activities[0] = &discordgo.Activity{
+		Name: fmt.Sprintf("%v servers", serverCount),
+		Type: discordgo.ActivityTypeWatching,
+		URL:  "https://github.com/tyzbit/go-discord-amputator",
+	}
+
+	err := s.UpdateStatusComplex(*usd)
+	if err != nil {
+		logrus.Error("Failed to set status: %v", err)
+	}
 }
 
 // This function will be called (due to AddHandler above) every time a new
