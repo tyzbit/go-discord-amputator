@@ -202,7 +202,7 @@ func handleMessageWithStats(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 // handleMessageWithAmpUrls takes a Discord session and a message string and
-// calls go-amputator with a []string of URLs parsed from the message
+// calls go-amputator with a []string of URLs parsed from the message.
 // It then sends an embed with the resulting amputated URLs.
 func handleMessageWithAmpUrls(s *discordgo.Session, m *discordgo.MessageCreate) {
 	xurlsRelaxed := xurls.Strict
