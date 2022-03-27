@@ -16,9 +16,7 @@ import (
 )
 
 const (
-	userAgent    string = "Discord-Amputator bot"
-	ampRegex     string = ".*[./-]amp[-./]?.*"
-	amputatorApi string = "https://www.amputatorbot.com/api/v1/"
+	ampRegex string = ".*[./-]amp[-./]?.*"
 )
 
 // Environment variable name definitions
@@ -131,7 +129,7 @@ func updateServersWatched(s *discordgo.Session, serverCount int) {
 
 	err := s.UpdateStatusComplex(*usd)
 	if err != nil {
-		logrus.Error("failed to set status: %v", err)
+		logrus.Error("failed to set status: ", err)
 	}
 }
 
@@ -195,7 +193,10 @@ func handleMessageWithStats(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 
 		logrus.Debug("sending !stats response to ", m.Author.Username, "(", m.Author.ID, ")")
-		s.ChannelMessageSendEmbed(m.ChannelID, embed)
+		_, err := s.ChannelMessageSendEmbed(m.ChannelID, embed)
+		if err != nil {
+			logrus.Error("unable to send embed: ", err)
+		}
 	} else {
 		logrus.Debug("did not respond to ", m.Author.Username, " id ", m.Author.ID, " because user is not an administrator")
 	}
@@ -234,14 +235,20 @@ func handleMessageWithAmpUrls(s *discordgo.Session, m *discordgo.MessageCreate) 
 	if err != nil {
 		logrus.Error("error calling Amputator API: ", err)
 		stats[messagesSent]++
-		s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
+		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
+		if err != nil {
+			logrus.Error("unable to send embed: ", err)
+		}
 		return
 	}
 
 	if len(amputatedLinks) == 0 {
 		logrus.Warn("amputator bot returned no Amputated URLs from: ", strings.Join(urls, ", "))
 		stats[messagesSent]++
-		s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
+		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
+		if err != nil {
+			logrus.Error("unable to send embed: ", err)
+		}
 		return
 	}
 	stats[urlsAmputated] = stats[urlsAmputated] + len(amputatedLinks)
@@ -267,5 +274,8 @@ func handleMessageWithAmpUrls(s *discordgo.Session, m *discordgo.MessageCreate) 
 		guildName = guild.Name
 	}
 	logrus.Debug("sending amputate message response in ", guildName, "(", m.GuildID, "), calling user: ", m.Author.Username, "(", m.Author.ID, ")")
-	s.ChannelMessageSendEmbed(m.ChannelID, embed)
+	_, err = s.ChannelMessageSendEmbed(m.ChannelID, embed)
+	if err != nil {
+		logrus.Error("unable to send embed: ", err)
+	}
 }

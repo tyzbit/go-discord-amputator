@@ -15,6 +15,8 @@ github.com/sirupsen/logrus v1.8.1/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/tyzbit/go-amputate v0.0.0-20220326233927-dbfd13eb182f h1:7dauKwRRf8x0MN57N4joRgvF7vxm/eYBN25GOyRXCZc=
 github.com/tyzbit/go-amputate v0.0.0-20220326233927-dbfd13eb182f/go.mod h1:2tHXoAbFLQLPJW1AJcEY0m4+NhswD2lcVgytFiOsNuo=
+github.com/tyzbit/go-amputate v0.0.0-20220327152522-689a0a7a5259 h1:O6Ny5A298AriJApG9516eebCGIWHN3D2zcXGggriYaw=
+github.com/tyzbit/go-amputate v0.0.0-20220327152522-689a0a7a5259/go.mod h1:2tHXoAbFLQLPJW1AJcEY0m4+NhswD2lcVgytFiOsNuo=
 golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b h1:7mWr3k41Qtv8XlltBkDkl8LoP3mpSgBW8BUoxtEdbXg=
 golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b/go.mod h1:T9bdIzuCu7OtxOm1hfPfRQxPLYneinmdGuTeoZ9dtd4=
 golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=

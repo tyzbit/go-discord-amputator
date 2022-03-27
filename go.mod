@@ -7,7 +7,7 @@ require (
 	github.com/joho/godotenv v1.4.0
 	github.com/mvdan/xurls v1.1.0
 	github.com/sirupsen/logrus v1.8.1
-	github.com/tyzbit/go-amputate v0.0.0-20220326233927-dbfd13eb182f
+	github.com/tyzbit/go-amputate v0.0.0-20220327152522-689a0a7a5259
 )
 
 require (
