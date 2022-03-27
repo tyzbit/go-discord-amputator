@@ -61,9 +61,7 @@ func init() {
 		parsedDeclaration := strings.SplitN(envDeclaration, "=", 2)
 		env[parsedDeclaration[0]] = parsedDeclaration[1]
 	}
-}
 
-func _initLogging() {
 	logLevelSelection := logrus.InfoLevel
 	switch {
 	case strings.EqualFold(env[logLevel], "debug"):
@@ -79,8 +77,6 @@ func _initLogging() {
 }
 
 func main() {
-	_initLogging()
-
 	// Create a new Discord session using the provided bot token.
 	dg, err := discordgo.New("Bot " + env[token])
 	if err != nil {
