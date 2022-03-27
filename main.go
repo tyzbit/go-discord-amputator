@@ -89,11 +89,14 @@ func main() {
 		return
 	}
 
+	// Register the botReady func as a callback for Ready events
+	dg.AddHandler(botReady)
+
+	// Register guildCreate func as a callback for GuildCreate events
+	dg.AddHandler(guildCreate)
+
 	// Register the messageCreate func as a callback for MessageCreate events.
 	dg.AddHandler(messageCreate)
-
-	dg.AddHandler(botReady)
-	dg.AddHandler(guildCreate)
 
 	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsDirectMessages
 
