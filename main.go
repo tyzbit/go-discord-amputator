@@ -98,7 +98,7 @@ func main() {
 	}
 
 	// Wait here until CTRL-C or other term signal is received.
-	logrus.Info("Bot started")
+	logrus.Info("bot started")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
