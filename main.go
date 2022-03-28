@@ -13,7 +13,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -57,18 +57,20 @@ func init() {
 		env[parsedDeclaration[0]] = parsedDeclaration[1]
 	}
 
-	logLevelSelection := logrus.InfoLevel
+	logLevelSelection := log.InfoLevel
 	switch {
 	case strings.EqualFold(env[logLevel], "debug"):
-		logLevelSelection = logrus.DebugLevel
+		logLevelSelection = log.DebugLevel
+		log.SetReportCaller(true)
 	case strings.EqualFold(env[logLevel], "info"):
-		logLevelSelection = logrus.DebugLevel
+		logLevelSelection = log.InfoLevel
 	case strings.EqualFold(env[logLevel], "warn"):
-		logLevelSelection = logrus.WarnLevel
+		logLevelSelection = log.WarnLevel
 	case strings.EqualFold(env[logLevel], "error"):
-		logLevelSelection = logrus.ErrorLevel
+		logLevelSelection = log.ErrorLevel
 	}
-	logrus.SetLevel(logLevelSelection)
+	log.SetLevel(logLevelSelection)
+	log.SetFormatter(&log.JSONFormatter{})
 }
 
 func main() {
@@ -93,14 +95,14 @@ func main() {
 	}
 	bot, botError := bot.updateOrInitializeBotStats()
 	if botError != nil {
-		logrus.Warn("unable to set up stats: ", botError)
+		log.Warn("unable to set up stats: ", botError)
 		bot.dbConnected = false
 	}
 
 	// Create a new Discord session using the provided bot token.
 	dg, err := discordgo.New("Bot " + env[token])
 	if err != nil {
-		logrus.Error("error creating Discord session: ", err)
+		log.Error("error creating Discord session: ", err)
 		os.Exit(1)
 		return
 	}
@@ -118,13 +120,13 @@ func main() {
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
 	if err != nil {
-		logrus.Error("error opening connection: ", err)
+		log.Error("error opening connection: ", err)
 		os.Exit(1)
 		return
 	}
 
 	// Wait here until CTRL-C or other term signal is received.
-	logrus.Info("bot started")
+	log.Info("bot started")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
@@ -147,7 +149,7 @@ func (bot amputatorBot) statsHandler() {
 			bot.stats[stat] = value
 			err := bot.writeStatToDatabase(stat, value)
 			if err != nil {
-				logrus.Error("unable to write stat to database: ", err)
+				log.Error("unable to write stat to database: ", err)
 			}
 		}
 	}
@@ -167,7 +169,7 @@ func (bot amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Message
 	// Check if this is a direct message
 	if m.GuildID == "" {
 		if strings.HasPrefix(m.Content, "!stats") {
-			logrus.Debug("!stats called by ", m.Author.Username, "(", m.Author.ID, ")")
+			log.Debug("!stats called by ", m.Author.Username, "(", m.Author.ID, ")")
 			bot.updateStats <- map[string]int{"messagesActedOn": bot.stats["messagesActedOn"] + 1}
 			go bot.handleMessageWithStats(s, m)
 			return
@@ -178,13 +180,13 @@ func (bot amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Message
 	// to the ampRegex.
 	obj, _ := regexp.Match(ampRegex, []byte(m.Content))
 	if obj == true {
-		logrus.Debug("message appears to have an AMP URL")
+		log.Debug("message appears to have an AMP URL")
 		if env[automaticallyAmputate] != "" {
 			bot.updateStats <- map[string]int{"messagesActedOn": bot.stats["messagesActedOn"] + 1}
 			go bot.handleMessageWithAmpUrls(s, m)
 			return
 		} else {
-			logrus.Info("URLs were not amputated because ", automaticallyAmputate, " was not set")
+			log.Info("URLs were not amputated because ", automaticallyAmputate, " was not set")
 			return
 		}
 	}

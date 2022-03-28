@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // writeStatToDatabase writes a particular stat to the database
@@ -16,7 +16,7 @@ func (bot amputatorBot) writeStatToDatabase(s string, i int) error {
 		query := bot.dbConnection.QueryRow("UPDATE stats SET " + s + " = " + fmt.Sprint(i) + " WHERE botId = " + fmt.Sprintf("%v", bot.id) + ";")
 		err := query.Scan()
 		if err != sql.ErrNoRows {
-			logrus.Warn("unable to update messagesSeen: ", err)
+			log.Warn("unable to update messagesSeen: ", err)
 			return err
 		}
 	}
@@ -26,7 +26,7 @@ func (bot amputatorBot) writeStatToDatabase(s string, i int) error {
 // updateServersWatched updates the number of servers watched internally and
 // also updates the value in the database
 func (bot amputatorBot) updateServersWatched(s *discordgo.Session, serverCount int) {
-	logrus.Info("watching ", serverCount, " servers")
+	log.Info("watching ", serverCount, " servers")
 	usd := &discordgo.UpdateStatusData{Status: "online"}
 	usd.Activities = make([]*discordgo.Activity, 1)
 	usd.Activities[0] = &discordgo.Activity{
@@ -37,7 +37,7 @@ func (bot amputatorBot) updateServersWatched(s *discordgo.Session, serverCount i
 
 	err := s.UpdateStatusComplex(*usd)
 	if err != nil {
-		logrus.Error("failed to set status: ", err)
+		log.Error("failed to set status: ", err)
 	}
 
 	bot.updateStats <- map[string]int{"serversWatched": len(s.State.Guilds)}
@@ -47,7 +47,7 @@ func (bot amputatorBot) updateServersWatched(s *discordgo.Session, serverCount i
 // it creates a stats table with an initial entry.
 func (bot amputatorBot) updateOrInitializeBotStats() (amputatorBot, error) {
 	if !bot.dbConnected {
-		logrus.Debug("not updating db stats because DB is not connected")
+		log.Debug("not updating db stats because DB is not connected")
 		return bot, nil
 	}
 
@@ -56,7 +56,7 @@ func (bot amputatorBot) updateOrInitializeBotStats() (amputatorBot, error) {
 	query := bot.dbConnection.QueryRow(getStatsQuery)
 	err := query.Scan(&botId, &callsToAmputatorApi, &messagesActedOn, &messagesSeen, &messagesSent, &serversWatched, &urlsAmputated)
 	if err != nil {
-		logrus.Debug("unable to pull stats from database, err: ", err, ", creating table if not exists")
+		log.Debug("unable to pull stats from database, err: ", err, ", creating table if not exists")
 		createTableQuery := "CREATE TABLE IF NOT EXISTS stats (botId int PRIMARY KEY, "
 		statsTypes := []string{}
 
@@ -79,7 +79,7 @@ func (bot amputatorBot) updateOrInitializeBotStats() (amputatorBot, error) {
 			return bot, fmt.Errorf("error creating table: %v", err)
 		}
 
-		logrus.Debug("initializing values in database")
+		log.Debug("initializing values in database")
 		statsValues := []string{}
 		statsColumns := []string{}
 
@@ -95,7 +95,7 @@ func (bot amputatorBot) updateOrInitializeBotStats() (amputatorBot, error) {
 			statsValues = append(statsValues, fmt.Sprintf("%v", bot.stats[k]))
 		}
 		createRecordQuery := "INSERT INTO stats (botId, " + strings.Join(statsColumns, ", ") + ") VALUE (" + fmt.Sprintf("%v", bot.id) + ", " + strings.Join(statsValues, ", ") + ");"
-		logrus.Debug("initializing query: ", createRecordQuery)
+		log.Debug("initializing query: ", createRecordQuery)
 		query = bot.dbConnection.QueryRow(createRecordQuery)
 		err = query.Scan()
 		if err != sql.ErrNoRows {
@@ -118,6 +118,6 @@ func (bot amputatorBot) updateOrInitializeBotStats() (amputatorBot, error) {
 		"urlsAmputated":       urlsAmputated,
 		"serversWatched":      serversWatched,
 	}
-	logrus.Debug("successfully updated stats: ", fmt.Sprintf("%v", bot.stats))
+	log.Debug("successfully updated stats: ", fmt.Sprintf("%v", bot.stats))
 	return bot, nil
 }

@@ -7,7 +7,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/mvdan/xurls"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	goamputate "github.com/tyzbit/go-amputate"
 )
 
@@ -38,13 +38,13 @@ func (bot amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discordg
 			Description: formattedStats,
 		}
 
-		logrus.Debug("sending !stats response to ", m.Author.Username, "(", m.Author.ID, ")")
+		log.Debug("sending !stats response to ", m.Author.Username, "(", m.Author.ID, ")")
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, embed)
 		if err != nil {
-			logrus.Error("unable to send embed: ", err)
+			log.Error("unable to send embed: ", err)
 		}
 	} else {
-		logrus.Debug("did not respond to ", m.Author.Username, " id ", m.Author.ID, " because user is not an administrator")
+		log.Debug("did not respond to ", m.Author.Username, " id ", m.Author.ID, " because user is not an administrator")
 	}
 }
 
@@ -55,11 +55,11 @@ func (bot amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discor
 	xurlsRelaxed := xurls.Strict
 	urls := xurlsRelaxed.FindAllString(m.Content, -1)
 	if len(urls) == 0 {
-		logrus.Debug("found 0 URLs in message that matched amp regex: ", ampRegex)
+		log.Debug("found 0 URLs in message that matched amp regex: ", ampRegex)
 		return
 	}
 
-	logrus.Debug("URLs parsed from message: ", strings.Join(urls, ", "))
+	log.Debug("URLs parsed from message: ", strings.Join(urls, ", "))
 
 	var amputator goamputate.AmputatorBot
 	options := map[string]string{}
@@ -79,21 +79,22 @@ func (bot amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discor
 	bot.updateStats <- map[string]int{"callsToAmputatorApi": bot.stats["callsToAmputatorApi"] + 1}
 	amputatedLinks, err := amputator.Amputate(urls, options)
 	if err != nil {
-		logrus.Error("error calling Amputator API: ", err)
+		log.Error("error calling Amputator API: ", err)
 		bot.updateStats <- map[string]int{"messagesSent": bot.stats["messagesSent"] + 1}
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
 		if err != nil {
-			logrus.Error("unable to send embed: ", err)
+			log.Error("unable to send embed: ", err)
 		}
 		return
 	}
 
 	if len(amputatedLinks) == 0 {
-		logrus.Warn("amputator bot returned no Amputated URLs from: ", strings.Join(urls, ", "))
+		log.Warn("amputator bot returned no Amputated URLs from: ", strings.Join(urls, ", "))
 		bot.updateStats <- map[string]int{"messagesSent": bot.stats["messagesSent"] + 1}
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
 		if err != nil {
-			logrus.Error("unable to send embed: ", err)
+			log.WithField("function", "handleMessageWithAmpUrls")
+			log.Error("unable to send embed: ", err)
 		}
 		return
 	}
@@ -114,15 +115,15 @@ func (bot amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discor
 	guild, err := s.Guild(m.GuildID)
 	guildName := "unknown"
 	if err != nil {
-		logrus.Warn("couldn't get guild for ID ", m.GuildID)
+		log.Warn("couldn't get guild for ID ", m.GuildID)
 	}
 	if guild.Name != "" {
 		guildName = guild.Name
 	}
-	logrus.Debug("sending amputate message response in ", guildName, "(", m.GuildID, "), calling user: ", m.Author.Username, "(", m.Author.ID, ")")
+	log.Debug("sending amputate message response in ", guildName, "(", m.GuildID, "), calling user: ", m.Author.Username, "(", m.Author.ID, ")")
 	_, err = s.ChannelMessageSendEmbed(m.ChannelID, embed)
 	if err != nil {
-		logrus.Error("unable to send embed: ", err)
+		log.Error("unable to send embed: ", err)
 	}
 	bot.updateStats <- map[string]int{"messagesSent": bot.stats["messagesSent"] + 1}
 }
