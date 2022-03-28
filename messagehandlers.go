@@ -32,8 +32,7 @@ func (bot amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discordg
 		for _, k := range keys {
 			formattedStats = fmt.Sprintf("%v\n%v: %v", formattedStats, k, bot.stats[k])
 		}
-		bot.stats["messagesSent"]++
-		bot.updateMessagesSent(bot.stats["messagesSent"])
+		bot.updateStats <- map[string]int{"messagesSent": bot.stats["messagesSent"] + 1}
 		embed := &discordgo.MessageEmbed{
 			Title:       "Amputation Stats",
 			Description: formattedStats,
@@ -77,13 +76,11 @@ func (bot amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discor
 		Title:       "Problem Amputating",
 		Description: "Sorry, I couldn't amputate that link.",
 	}
-	bot.stats["callsToAmputatorApi"]++
-	bot.updateCallsToAmputatorApi(bot.stats["callsToAmputatorApi"])
+	bot.updateStats <- map[string]int{"callsToAmputatorApi": bot.stats["callsToAmputatorApi"] + 1}
 	amputatedLinks, err := amputator.Amputate(urls, options)
 	if err != nil {
 		logrus.Error("error calling Amputator API: ", err)
-		bot.stats["messagesSent"]++
-		bot.updateMessagesSent(bot.stats["messagesSent"])
+		bot.updateStats <- map[string]int{"messagesSent": bot.stats["messagesSent"] + 1}
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
 		if err != nil {
 			logrus.Error("unable to send embed: ", err)
@@ -93,16 +90,14 @@ func (bot amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discor
 
 	if len(amputatedLinks) == 0 {
 		logrus.Warn("amputator bot returned no Amputated URLs from: ", strings.Join(urls, ", "))
-		bot.stats["messagesSent"]++
-		bot.updateMessagesSent(bot.stats["messagesSent"])
+		bot.updateStats <- map[string]int{"messagesSent": bot.stats["messagesSent"] + 1}
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
 		if err != nil {
 			logrus.Error("unable to send embed: ", err)
 		}
 		return
 	}
-	bot.stats["urlsAmputated"] = bot.stats["urlsAmputated"] + len(amputatedLinks)
-	bot.updateUrlsAmputated(bot.stats["urlsAmputated"])
+	bot.updateStats <- map[string]int{"urlsAmputated": bot.stats["urlsAmputated"] + len(amputatedLinks)}
 
 	plural := ""
 	if len(amputatedLinks) > 1 {
@@ -115,8 +110,7 @@ func (bot amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discor
 		Title:       title,
 		Description: strings.Join(amputatedLinks, "\n"),
 	}
-	bot.stats["messagesSent"]++
-	bot.updateMessagesSent(bot.stats["messagesSent"])
+
 	guild, err := s.Guild(m.GuildID)
 	guildName := "unknown"
 	if err != nil {
@@ -130,4 +124,5 @@ func (bot amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discor
 	if err != nil {
 		logrus.Error("unable to send embed: ", err)
 	}
+	bot.updateStats <- map[string]int{"messagesSent": bot.stats["messagesSent"] + 1}
 }

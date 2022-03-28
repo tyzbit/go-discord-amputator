@@ -9,4 +9,5 @@ type amputatorBot struct {
 	dbConnection *sql.DB
 	id           int
 	stats        map[string]int
+	updateStats  chan map[string]int
 }

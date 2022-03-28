@@ -89,6 +89,7 @@ func main() {
 		dbConnection: db,
 		id:           id,
 		stats:        stats,
+		updateStats:  make(chan map[string]int, 10),
 	}
 	bot, botError := bot.updateOrInitializeBotStats()
 	if botError != nil {
@@ -103,6 +104,10 @@ func main() {
 		os.Exit(1)
 		return
 	}
+
+	// Start the stats handler
+	go bot.statsHandler()
+	defer close(bot.updateStats)
 
 	dg.AddHandler(bot.botReady)
 	dg.AddHandler(bot.guildCreate)
@@ -129,20 +134,30 @@ func main() {
 }
 
 func (bot amputatorBot) botReady(s *discordgo.Session, r *discordgo.Ready) {
-	bot.stats["serversWatched"] = len(s.State.Guilds)
-	bot.updateServersWatched(s, bot.stats["serversWatched"])
+	go bot.updateServersWatched(s, len(s.State.Guilds))
 }
 
 func (bot amputatorBot) guildCreate(s *discordgo.Session, g *discordgo.GuildCreate) {
-	bot.stats["serversWatched"] = len(s.State.Guilds)
-	bot.updateServersWatched(s, bot.stats["serversWatched"])
+	go bot.updateServersWatched(s, len(s.State.Guilds))
+}
+
+func (bot amputatorBot) statsHandler() error {
+	for stats := range bot.updateStats {
+		for stat, value := range stats {
+			bot.stats[stat] = value
+			err := bot.writeStatToDatabase(stat, value)
+			if err != nil {
+				logrus.Error("unable to write stat to database: ", err)
+			}
+		}
+	}
+	return nil
 }
 
 // This function will be called (due to AddHandler above) every time a new
 // message is created on any channel that the authenticated bot has access to.
 func (bot amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	bot.stats["messagesSeen"]++
-	bot.updateMessagesSeen(bot.stats["messagesSeen"])
+	bot.updateStats <- map[string]int{"messagesSeen": bot.stats["messagesSeen"] + 1}
 
 	// Ignore all messages created by the bot itself
 	// This isn't required in this specific example but it's a good practice.
@@ -153,9 +168,8 @@ func (bot amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Message
 	// Check if this is a direct message
 	if m.GuildID == "" {
 		if strings.HasPrefix(m.Content, "!stats") {
-			logrus.Debug("!stats called by ", m.Author.Username, " id: ", m.Author.ID)
-			bot.stats["messagesActedOn"]++
-			bot.updateMessagesActedOn(bot.stats["messagesActedOn"])
+			logrus.Debug("!stats called by ", m.Author.Username, "(", m.Author.ID, ")")
+			bot.updateStats <- map[string]int{"messagesActedOn": bot.stats["messagesActedOn"] + 1}
 			go bot.handleMessageWithStats(s, m)
 			return
 		}
@@ -167,8 +181,7 @@ func (bot amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Message
 	if obj == true {
 		logrus.Debug("message appears to have an AMP URL")
 		if env[automaticallyAmputate] != "" {
-			bot.stats["messagesActedOn"]++
-			bot.updateMessagesActedOn(bot.stats["messagesActedOn"])
+			bot.updateStats <- map[string]int{"messagesActedOn": bot.stats["messagesActedOn"] + 1}
 			go bot.handleMessageWithAmpUrls(s, m)
 			return
 		} else {

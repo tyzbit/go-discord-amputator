@@ -10,60 +10,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// updateMessagesSeen updates the count of the number of messages seen in the database.
-func (bot amputatorBot) updateMessagesSeen(i int) {
+// writeStatToDatabase writes a particular stat to the database
+func (bot amputatorBot) writeStatToDatabase(s string, i int) error {
 	if bot.dbConnected {
-		query := bot.dbConnection.QueryRow("UPDATE stats SET messagesSeen = " + fmt.Sprint(i) + " WHERE botId = " + fmt.Sprintf("%v", bot.id) + ";")
+		query := bot.dbConnection.QueryRow("UPDATE stats SET " + s + " = " + fmt.Sprint(i) + " WHERE botId = " + fmt.Sprintf("%v", bot.id) + ";")
 		err := query.Scan()
 		if err != sql.ErrNoRows {
 			logrus.Warn("unable to update messagesSeen: ", err)
+			return err
 		}
 	}
-}
-
-// updateMessagesActedOn updates the count of the number of messages acted on
-// in the database.
-func (bot amputatorBot) updateMessagesActedOn(i int) {
-	if bot.dbConnected {
-		query := bot.dbConnection.QueryRow("UPDATE stats SET messagesActedOn = " + fmt.Sprint(i) + " WHERE botId = " + fmt.Sprintf("%v", bot.id) + ";")
-		err := query.Scan()
-		if err != sql.ErrNoRows {
-			logrus.Warn("unable to update messagesActedOn: ", err)
-		}
-	}
-}
-
-// updateMessagesSent updates the count of the number of messages sent in the database.
-func (bot amputatorBot) updateMessagesSent(i int) {
-	if bot.dbConnected {
-		query := bot.dbConnection.QueryRow("UPDATE stats SET messagesSent = " + fmt.Sprint(i) + " WHERE botId = " + fmt.Sprintf("%v", bot.id) + ";")
-		err := query.Scan()
-		if err != sql.ErrNoRows {
-			logrus.Warn("unable to update messagesSent: ", err)
-		}
-	}
-}
-
-// updateMessagesSent updates the count of the number of calls to the Amputator API in the database.
-func (bot amputatorBot) updateCallsToAmputatorApi(i int) {
-	if bot.dbConnected {
-		query := bot.dbConnection.QueryRow("UPDATE stats SET callsToAmputatorApi = " + fmt.Sprint(i) + " WHERE botId = " + fmt.Sprintf("%v", bot.id) + ";")
-		err := query.Scan()
-		if err != sql.ErrNoRows {
-			logrus.Warn("unable to update callsToAmputatorApi: ", err)
-		}
-	}
-}
-
-// updateUrlsAmputated updates the count of the number of URLs amputated in the database.
-func (bot amputatorBot) updateUrlsAmputated(i int) {
-	if bot.dbConnected {
-		query := bot.dbConnection.QueryRow("UPDATE stats SET urlsAmputated = " + fmt.Sprint(i) + " WHERE botId = " + fmt.Sprintf("%v", bot.id) + ";")
-		err := query.Scan()
-		if err != sql.ErrNoRows {
-			logrus.Warn("unable to update urlsAmputated: ", err)
-		}
-	}
+	return nil
 }
 
 // updateServersWatched updates the number of servers watched internally and
@@ -83,13 +40,7 @@ func (bot amputatorBot) updateServersWatched(s *discordgo.Session, serverCount i
 		logrus.Error("failed to set status: ", err)
 	}
 
-	if bot.dbConnected {
-		query := bot.dbConnection.QueryRow("UPDATE stats SET serversWatched = " + fmt.Sprint(serverCount) + " WHERE botId = " + fmt.Sprintf("%v", bot.id) + ";")
-		err := query.Scan()
-		if err != sql.ErrNoRows {
-			logrus.Warn("unable to update serversWatched: ", err)
-		}
-	}
+	bot.updateStats <- map[string]int{"serversWatched": len(s.State.Guilds)}
 }
 
 // updateOrInitializeBotStats loads bot stats from the database. If not found,
