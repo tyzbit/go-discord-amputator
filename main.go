@@ -141,7 +141,7 @@ func (bot amputatorBot) guildCreate(s *discordgo.Session, g *discordgo.GuildCrea
 	go bot.updateServersWatched(s, len(s.State.Guilds))
 }
 
-func (bot amputatorBot) statsHandler() error {
+func (bot amputatorBot) statsHandler() {
 	for stats := range bot.updateStats {
 		for stat, value := range stats {
 			bot.stats[stat] = value
@@ -151,7 +151,6 @@ func (bot amputatorBot) statsHandler() error {
 			}
 		}
 	}
-	return nil
 }
 
 // This function will be called (due to AddHandler above) every time a new
