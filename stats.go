@@ -49,7 +49,7 @@ func (bot *amputatorBot) updateMessagesSent(i int) {
 	bot.dbChannel <- field + " = " + fmt.Sprintf("%v", i)
 }
 
-// updateMessageSent updates the calls to Amputator API value
+// callsToAmputatorApi updates the calls to Amputator API value
 // in both the local bot stats and in the database
 func (bot *amputatorBot) updateCallsToAmputatorApi(i int) {
 	field := getTagValueByTag("sql", "callsToAmputatorApi")
@@ -63,7 +63,7 @@ func (bot *amputatorBot) updateCallsToAmputatorApi(i int) {
 	bot.dbChannel <- field + " = " + fmt.Sprintf("%v", i)
 }
 
-// updateMessageSent updates the URLs amputated value
+// urlsAmputated updates the URLs amputated value
 // in both the local bot stats and in the database
 func (bot *amputatorBot) updateUrlsAmputated(i int) {
 	field := getTagValueByTag("sql", "urlsAmputated")
@@ -77,7 +77,7 @@ func (bot *amputatorBot) updateUrlsAmputated(i int) {
 	bot.dbChannel <- field + " = " + fmt.Sprintf("%v", i)
 }
 
-// updateMessageSent updates the servers watched value
+// updateServersWatched updates the servers watched value
 // in both the local bot stats and in the database
 func (bot *amputatorBot) updateServersWatched(s *discordgo.Session, i int) {
 	log.Info("watching ", i, " servers")

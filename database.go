@@ -8,7 +8,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// writeStatToDatabase writes a particular stat to the database
+// writeStatToDatabase writes a particular stat to the database.
+// it takes "KEY = VALUE" which is used in the SQL UPDATE statement.
 func (bot *amputatorBot) updateValueInDb(queryFragment string) error {
 	if bot.dbConnected {
 		statement := "UPDATE stats SET " + queryFragment + " WHERE botId = " + fmt.Sprintf("%v", bot.id) + ";"
@@ -31,6 +32,8 @@ func (bot *amputatorBot) initializeBotStats() (amputatorBot, error) {
 		return *bot, nil
 	}
 
+	// Try to get stats from the database. If unsuccessful, try creating the table,
+	// then initialize the stats in the database.
 	getStatsQuery := "SELECT * FROM stats WHERE botId = " + fmt.Sprintf("%v", bot.id)
 	log.Trace("getting stats from db with query: ", getStatsQuery)
 	query := bot.dbConnection.QueryRow(getStatsQuery)
@@ -100,7 +103,7 @@ func (bot *amputatorBot) initializeBotStats() (amputatorBot, error) {
 		}
 	}
 
-	log.Info("successfully initialized stats")
+	log.Info("successfully initialized stats from the database")
 	log.Trace("stats: ", fmt.Sprintf("%v", bot.currentStats))
 	return *bot, nil
 }

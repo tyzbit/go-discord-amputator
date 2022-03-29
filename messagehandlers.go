@@ -34,6 +34,7 @@ func (bot *amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discord
 			Description: formattedStats,
 		}
 
+		// Respond to !stats command with formattedStats
 		log.Debug("sending !stats response to ", m.Author.Username, "(", m.Author.ID, ")")
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, embed)
 		if err != nil {
@@ -87,6 +88,8 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 		return
 	}
 
+	// It's possible we got a response, but there were no amputated URLs. If so, send
+	// a generic failure message.
 	if len(amputatedLinks) == 0 {
 		log.Warn("amputator bot returned no Amputated URLs from: ", strings.Join(urls, ", "))
 		bot.updateMessagesSent(bot.currentStats.messagesSent + 1)
@@ -96,13 +99,12 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 		}
 		return
 	}
-	bot.updateUrlsAmputated(bot.currentStats.urlsAmputated + 1)
+	bot.updateUrlsAmputated(bot.currentStats.urlsAmputated + len(amputatedLinks))
 
 	plural := ""
 	if len(amputatedLinks) > 1 {
 		plural = "s"
 	}
-
 	title := fmt.Sprintf("Amputated Link%v", plural)
 
 	embed := &discordgo.MessageEmbed{
@@ -118,10 +120,12 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 	if guild.Name != "" {
 		guildName = guild.Name
 	}
+
 	log.Debug("sending amputate message response in ", guildName, "(", m.GuildID, "), calling user: ", m.Author.Username, "(", m.Author.ID, ")")
 	_, err = s.ChannelMessageSendEmbed(m.ChannelID, embed)
 	if err != nil {
 		log.Error("unable to send embed: ", err)
 	}
+
 	bot.updateMessagesSent(bot.currentStats.messagesSent + 1)
 }
