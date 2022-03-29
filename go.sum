@@ -19,6 +19,8 @@ github.com/tyzbit/go-amputate v0.0.0-20220326233927-dbfd13eb182f h1:7dauKwRRf8x0
 github.com/tyzbit/go-amputate v0.0.0-20220326233927-dbfd13eb182f/go.mod h1:2tHXoAbFLQLPJW1AJcEY0m4+NhswD2lcVgytFiOsNuo=
 github.com/tyzbit/go-amputate v0.0.0-20220327152522-689a0a7a5259 h1:O6Ny5A298AriJApG9516eebCGIWHN3D2zcXGggriYaw=
 github.com/tyzbit/go-amputate v0.0.0-20220327152522-689a0a7a5259/go.mod h1:2tHXoAbFLQLPJW1AJcEY0m4+NhswD2lcVgytFiOsNuo=
+github.com/tyzbit/go-amputate v0.0.0-20220327163021-3e89b4ec86a8 h1:Kk2PWQfCI8KOqXeAwPMNWYawkcLKMioG+DjfZ057KKA=
+github.com/tyzbit/go-amputate v0.0.0-20220327163021-3e89b4ec86a8/go.mod h1:2tHXoAbFLQLPJW1AJcEY0m4+NhswD2lcVgytFiOsNuo=
 golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b h1:7mWr3k41Qtv8XlltBkDkl8LoP3mpSgBW8BUoxtEdbXg=
 golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b/go.mod h1:T9bdIzuCu7OtxOm1hfPfRQxPLYneinmdGuTeoZ9dtd4=
 golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=
@@ -26,6 +28,8 @@ golang.org/x/sys v0.0.0-20191026070338-33540a1f6037/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20220325203850-36772127a21f h1:TrmogKRsSOxRMJbLYGrB4SBbW+LJcEllYBLME5Zk5pU=
 golang.org/x/sys v0.0.0-20220325203850-36772127a21f/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886 h1:eJv7u3ksNXoLbGSKuv2s/SIO4tJVxc/A+MTpzxDgz/Q=
+golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
 golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
