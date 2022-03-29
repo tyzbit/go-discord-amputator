@@ -11,6 +11,15 @@ require (
 )
 
 require (
+	github.com/BurntSushi/toml v0.4.1 // indirect
+	github.com/golobby/cast v1.3.0 // indirect
+	github.com/golobby/config/v3 v3.3.4 // indirect
+	github.com/golobby/dotenv v1.3.1 // indirect
+	github.com/golobby/env/v2 v2.2.0 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+)
+
+require (
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gorilla/websocket v1.4.2 // indirect
