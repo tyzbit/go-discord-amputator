@@ -98,7 +98,7 @@ func main() {
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
 	if err != nil {
-		log.Error("error opening connection: ", err)
+		log.Error("error opening connection to discord: ", err)
 		os.Exit(1)
 		return
 	}
