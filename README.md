@@ -17,6 +17,6 @@ If database environment variables are provided, the bot will save stats to the d
 | DB_PASSWORD | Password for database user |
 | DB_USER | Username for database user |
 | GUESS_AND_CHECK | Whether to ask the API to take guesses at what the canonical URL is |
-| LOG_LEVEL | `debug`, `info`, `warn`, `error` |
+| LOG_LEVEL | `trace`, `debug`, `info`, `warn`, `error` |
 | MAX_DEPTH | How many pages deep to go to find the canonical URL |
 | TOKEN | The Discord token the bot should use |
