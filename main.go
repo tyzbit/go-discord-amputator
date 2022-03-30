@@ -68,12 +68,8 @@ func main() {
 		infoUpdates: make(chan botInfo, 10),
 	}
 
-	// create a new amputatorBot, with optional database connection
+	// Initialize stats, optionally pulling from the database
 	bot.initializeStats()
-	if err != nil {
-		log.Error("unable to create new bot: ", err)
-		os.Exit(1)
-	}
 
 	// Create a new Discord session using the provided bot token.
 	dg, err := discordgo.New("Bot " + config.token)
@@ -95,7 +91,9 @@ func main() {
 	dg.AddHandler(bot.guildCreate)
 	dg.AddHandler(bot.messageCreate)
 
-	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsDirectMessages
+	discordIntents := discordgo.IntentsGuildMessages |
+		discordgo.IntentsDirectMessages
+	dg.Identify.Intents = discordIntents
 
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
