@@ -1,123 +1,109 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
-	"sort"
-	"strings"
 
-	"github.com/bwmarrin/discordgo"
 	log "github.com/sirupsen/logrus"
 )
 
-// writeStatToDatabase writes a particular stat to the database
-func (bot amputatorBot) writeStatToDatabase(s string, i int) error {
+// writeStatToDatabase writes a particular stat to the database.
+// it takes "KEY = VALUE" which is used in the SQL UPDATE statement.
+func (bot *amputatorBot) updateValueInDb(queryFragment string) error {
 	if bot.dbConnected {
-		query := bot.dbConnection.QueryRow("UPDATE stats SET " + s + " = " + fmt.Sprint(i) + " WHERE botId = " + fmt.Sprintf("%v", bot.id) + ";")
-		err := query.Scan()
-		if err != sql.ErrNoRows {
-			log.Warn("unable to update messagesSeen: ", err)
+		statement := "UPDATE stats SET " + queryFragment +
+			" WHERE " + getBotInfoTagValue("db", "ID") + " = " + fmt.Sprintf("%v", bot.info.ID) + ";"
+
+		log.Trace("updateValueInDb query(", statement, ")")
+		result, err := bot.db.Exec(statement)
+		if err != nil {
+			log.Warn("unable to run query(", queryFragment, "): ", err)
 			return err
 		}
+
+		r, err := result.RowsAffected()
+		if err != nil {
+			log.Warn("unable to determine rows affected, query(", queryFragment, "): ", err)
+			return err
+		}
+		log.Trace(r, " rows affected")
 	}
 	return nil
 }
 
-// updateServersWatched updates the number of servers watched internally and
-// also updates the value in the database
-func (bot amputatorBot) updateServersWatched(s *discordgo.Session, serverCount int) {
-	log.Info("watching ", serverCount, " servers")
-	usd := &discordgo.UpdateStatusData{Status: "online"}
-	usd.Activities = make([]*discordgo.Activity, 1)
-	usd.Activities[0] = &discordgo.Activity{
-		Name: fmt.Sprintf("%v servers", serverCount),
-		Type: discordgo.ActivityTypeWatching,
-		URL:  "https://github.com/tyzbit/go-discord-amputator",
-	}
-
-	err := s.UpdateStatusComplex(*usd)
-	if err != nil {
-		log.Error("failed to set status: ", err)
-	}
-
-	bot.updateStats <- map[string]int{"serversWatched": len(s.State.Guilds)}
-}
-
-// updateOrInitializeBotStats loads bot stats from the database. If not found,
+// createBot returns a bot with stats from the database. If not found,
 // it creates a stats table with an initial entry.
-func (bot amputatorBot) updateOrInitializeBotStats() (amputatorBot, error) {
+func (bot *amputatorBot) initializeStats() {
 	if !bot.dbConnected {
 		log.Debug("not updating db stats because DB is not connected")
-		return bot, nil
+		return
 	}
 
-	var botId, callsToAmputatorApi, messagesActedOn, messagesSeen, messagesSent, serversWatched, urlsAmputated int
-	getStatsQuery := "SELECT * FROM stats WHERE botId = " + fmt.Sprintf("%v", bot.id)
-	query := bot.dbConnection.QueryRow(getStatsQuery)
-	err := query.Scan(&botId, &callsToAmputatorApi, &messagesActedOn, &messagesSeen, &messagesSent, &serversWatched, &urlsAmputated)
+	// Try to get stats from the database. If unsuccessful, try creating the table,
+	// then initialize the stats in the database.
+	getStatsQuery := "SELECT * FROM stats WHERE botId = " + fmt.Sprintf("%v", bot.info.ID) + " LIMIT 1;"
+	log.Trace("getting stats from db with query(", getStatsQuery, ")")
+	statsRows := []botInfo{}
+	err := bot.db.Select(&statsRows, getStatsQuery)
 	if err != nil {
-		log.Debug("unable to pull stats from database, err: ", err, ", creating table if not exists")
-		createTableQuery := "CREATE TABLE IF NOT EXISTS stats (botId int PRIMARY KEY, "
-		statsTypes := []string{}
-
-		// Sort keys first to ensure order is preserved
-		keys := make([]string, 0, len(bot.stats))
-		for k := range bot.stats {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		for _, k := range keys {
-			statsTypes = append(statsTypes, fmt.Sprintf("%v %T DEFAULT 0", k, bot.stats[k]))
-
-		}
-
-		createTableQuery = createTableQuery + strings.Join(statsTypes, ", ") + ");"
-		query := bot.dbConnection.QueryRow(createTableQuery)
-		err = query.Scan()
-		if err != sql.ErrNoRows {
-			return bot, fmt.Errorf("error creating table: %v", err)
-		}
-
-		log.Debug("initializing values in database")
-		statsValues := []string{}
-		statsColumns := []string{}
-
-		// Sort keys first to ensure order is preserved
-		keys = make([]string, 0, len(bot.stats))
-		for k := range bot.stats {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		for _, k := range keys {
-			statsColumns = append(statsColumns, k)
-			statsValues = append(statsValues, fmt.Sprintf("%v", bot.stats[k]))
-		}
-		createRecordQuery := "INSERT INTO stats (botId, " + strings.Join(statsColumns, ", ") + ") VALUE (" + fmt.Sprintf("%v", bot.id) + ", " + strings.Join(statsValues, ", ") + ");"
-		log.Debug("initializing query: ", createRecordQuery)
-		query = bot.dbConnection.QueryRow(createRecordQuery)
-		err = query.Scan()
-		if err != sql.ErrNoRows {
-			return bot, fmt.Errorf("unable to add initial stats row: %v", err)
-		}
-
-		query = bot.dbConnection.QueryRow(getStatsQuery)
-		err := query.Scan(&botId, &callsToAmputatorApi, &messagesActedOn, &messagesSeen, &messagesSent, &serversWatched, &urlsAmputated)
-		if err != nil {
-			bot.dbConnected = false
-			return bot, fmt.Errorf("unable to get just-created stats: %v", err)
-		}
+		log.Info("unable to load stats from database, err: ", err, ", trying to initialize stats table")
+		statsRows = bot.initializeDbStats(statsRows, getStatsQuery)
+		return
 	}
 
-	bot.stats = map[string]int{
-		"messagesSeen":        messagesSeen,
-		"messagesActedOn":     messagesActedOn,
-		"messagesSent":        messagesSent,
-		"callsToAmputatorApi": callsToAmputatorApi,
-		"urlsAmputated":       urlsAmputated,
-		"serversWatched":      serversWatched,
+	if len(statsRows) == 0 {
+		log.Info("no stats rows returned: ", err, ", trying to initialize stats table")
+		statsRows = bot.initializeDbStats(statsRows, getStatsQuery)
+		return
 	}
-	log.Debug("successfully updated stats: ", fmt.Sprintf("%v", bot.stats))
-	return bot, nil
+
+	if len(statsRows) > 1 {
+		log.Info("too many stats rows returned, stats will be from 0: ", err)
+		bot.dbConnected = false
+		return
+	}
+
+	// Save bot info from database
+	bot.info = statsRows[0]
+
+	log.Info("successfully initialized stats from the database")
+	log.Trace("stats: ", fmt.Sprintf("%#v", &bot.info))
+	return
+}
+
+func (bot *amputatorBot) initializeDbStats(statsRows []botInfo, getStatsQuery string) []botInfo {
+	// Update this if the botInfo struct changes
+	createTableQuery := "CREATE TABLE IF NOT EXISTS stats (" +
+		"botId int PRIMARY KEY," +
+		"messagesSeen int DEFAULT 0," +
+		"messagesActedOn int DEFAULT 0," +
+		"messagesSent int DEFAULT 0," +
+		"callsToAmputatorApi int DEFAULT 0," +
+		"urlsAmputated int DEFAULT 0," +
+		"serversWatched int DEFAULT 0" +
+		")"
+
+	log.Trace("creating table in db with query(", createTableQuery, ")")
+	_, err := bot.db.Exec(createTableQuery)
+	if err != nil {
+		bot.dbConnected = false
+		log.Errorf("error creating table: %v", err)
+	}
+
+	// Update this if the botInfo struct changes
+	createRecordQuery := "INSERT INTO stats " +
+		"(botId, messagesSeen, messagesActedOn, messagesSent, callsToAmputatorApi, urlsAmputated, serversWatched) " +
+		"VALUES (" + fmt.Sprintf("%v", bot.info.ID) + ", 0, 0, 0, 0, 0, 0);"
+	log.Trace("inserting initial stats into db with query(", createRecordQuery, ")")
+	_, err = bot.db.Exec(createRecordQuery)
+	if err != nil {
+		bot.dbConnected = false
+		log.Errorf("unable to add initial stats row: %v", err)
+	}
+
+	err = bot.db.Select(&statsRows, getStatsQuery)
+	if err != nil {
+		bot.dbConnected = false
+		log.Errorf("unable to get just-created stats")
+	}
+	return statsRows
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -13,45 +12,44 @@ import (
 
 // handleMessageWithStats takes a discord session and a user ID and sends a
 // message to the user with stats about the bot.
-func (bot amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discordgo.MessageCreate) {
+func (bot *amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discordgo.MessageCreate) {
 	administrator := false
-	for _, id := range strings.Split(env[adminIds], ",") {
+	for _, id := range config.adminIds {
 		if m.Author.ID == id {
 			administrator = true
 		}
 	}
 
 	if administrator {
-		formattedStats := ""
-		keys := make([]string, 0, len(bot.stats))
-		for k := range bot.stats {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
+		formattedStats := getBotInfoTagValue("pretty", "ServersWatched") + ": " + fmt.Sprintf("%v", bot.info.ServersWatched) + "\n" +
+			getBotInfoTagValue("pretty", "MessagesSeen") + ": " + fmt.Sprintf("%v", bot.info.MessagesSeen) + "\n" +
+			getBotInfoTagValue("pretty", "MessagesSent") + ": " + fmt.Sprintf("%v", bot.info.MessagesSent) + "\n" +
+			getBotInfoTagValue("pretty", "MessagesActedOn") + ": " + fmt.Sprintf("%v", bot.info.MessagesActedOn) + "\n" +
+			getBotInfoTagValue("pretty", "CallsToAmputatorAPI") + ": " + fmt.Sprintf("%v", bot.info.CallsToAmputatorAPI) + "\n" +
+			getBotInfoTagValue("pretty", "URLsAmputated") + ": " + fmt.Sprintf("%v", bot.info.URLsAmputated)
 
-		for _, k := range keys {
-			formattedStats = fmt.Sprintf("%v\n%v: %v", formattedStats, k, bot.stats[k])
-		}
-		bot.updateStats <- map[string]int{"messagesSent": bot.stats["messagesSent"] + 1}
+		bot.updateMessagesSent(bot.info.MessagesSent + 1)
 		embed := &discordgo.MessageEmbed{
 			Title:       "Amputation Stats",
 			Description: formattedStats,
 		}
 
-		log.Debug("sending !stats response to ", m.Author.Username, "(", m.Author.ID, ")")
+		// Respond to !stats command with formattedStats
+		log.Info("sending !stats response to ", m.Author.Username, "(", m.Author.ID, ")")
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, embed)
 		if err != nil {
 			log.Error("unable to send embed: ", err)
 		}
 	} else {
-		log.Debug("did not respond to ", m.Author.Username, " id ", m.Author.ID, " because user is not an administrator")
+		log.Info("did not respond to ", m.Author.Username,
+			"(", m.Author.ID, ") because user is not an administrator")
 	}
 }
 
 // handleMessageWithAmpUrls takes a Discord session and a message string and
 // calls go-amputator with a []string of URLs parsed from the message.
 // It then sends an embed with the resulting amputated URLs.
-func (bot amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discordgo.MessageCreate) {
+func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discordgo.MessageCreate) {
 	xurlsRelaxed := xurls.Strict
 	urls := xurlsRelaxed.FindAllString(m.Content, -1)
 	if len(urls) == 0 {
@@ -64,23 +62,26 @@ func (bot amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discor
 	var amputator goamputate.AmputatorBot
 	options := map[string]string{}
 
-	// Read environment options and set parameters appropriately
-	if env[guessAndCheck] != "" {
-		options["gac"] = env[guessAndCheck]
+	// Read environment options and set parameters appropriately.
+	// These are string and not bool and int because bool and int zero values
+	// are false and 0, which are valid selections so we can't be positive
+	// those weren't actively selected.
+	if config.guessAndCheck != "" {
+		options["gac"] = config.guessAndCheck
 	}
-	if env[maxDepth] != "" {
-		options["md"] = env[maxDepth]
+	if config.maxDepth != "" {
+		options["md"] = config.maxDepth
 	}
 
 	genericLinkAmputationFailureMessage := &discordgo.MessageEmbed{
 		Title:       "Problem Amputating",
 		Description: "Sorry, I couldn't amputate that link.",
 	}
-	bot.updateStats <- map[string]int{"callsToAmputatorApi": bot.stats["callsToAmputatorApi"] + 1}
+	bot.updateCallsToAmputatorApi(bot.info.CallsToAmputatorAPI + 1)
 	amputatedLinks, err := amputator.Amputate(urls, options)
 	if err != nil {
 		log.Error("error calling Amputator API: ", err)
-		bot.updateStats <- map[string]int{"messagesSent": bot.stats["messagesSent"] + 1}
+		bot.updateMessagesSent(bot.info.MessagesSent + 1)
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
 		if err != nil {
 			log.Error("unable to send embed: ", err)
@@ -88,23 +89,23 @@ func (bot amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discor
 		return
 	}
 
+	// It's possible we got a response, but there were no amputated URLs. If so, send
+	// a generic failure message.
 	if len(amputatedLinks) == 0 {
 		log.Warn("amputator bot returned no Amputated URLs from: ", strings.Join(urls, ", "))
-		bot.updateStats <- map[string]int{"messagesSent": bot.stats["messagesSent"] + 1}
+		bot.updateMessagesSent(bot.info.MessagesSent + 1)
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
 		if err != nil {
-			log.WithField("function", "handleMessageWithAmpUrls")
 			log.Error("unable to send embed: ", err)
 		}
 		return
 	}
-	bot.updateStats <- map[string]int{"urlsAmputated": bot.stats["urlsAmputated"] + len(amputatedLinks)}
+	bot.updateUrlsAmputated(bot.info.URLsAmputated + len(amputatedLinks))
 
 	plural := ""
 	if len(amputatedLinks) > 1 {
 		plural = "s"
 	}
-
 	title := fmt.Sprintf("Amputated Link%v", plural)
 
 	embed := &discordgo.MessageEmbed{
@@ -120,10 +121,14 @@ func (bot amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discor
 	if guild.Name != "" {
 		guildName = guild.Name
 	}
-	log.Debug("sending amputate message response in ", guildName, "(", m.GuildID, "), calling user: ", m.Author.Username, "(", m.Author.ID, ")")
+
+	log.Debug("sending amputate message response in ",
+		guildName, "(", m.GuildID, "), calling user: ",
+		m.Author.Username, "(", m.Author.ID, ")")
 	_, err = s.ChannelMessageSendEmbed(m.ChannelID, embed)
 	if err != nil {
 		log.Error("unable to send embed: ", err)
 	}
-	bot.updateStats <- map[string]int{"messagesSent": bot.stats["messagesSent"] + 1}
+
+	bot.updateMessagesSent(bot.info.MessagesSent + 1)
 }

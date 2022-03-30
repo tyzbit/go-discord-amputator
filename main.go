@@ -1,18 +1,18 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"os/signal"
 	"regexp"
-	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/joho/godotenv"
+	cfg "github.com/golobby/config/v3"
+	"github.com/golobby/config/v3/pkg/feeder"
+	"github.com/jmoiron/sqlx"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -20,53 +20,30 @@ const (
 	ampRegex string = ".*[./-]amp[-./]?.*"
 )
 
-// Environment variable name definitions
-const (
-	adminIds              string = "ADMINISTRATOR_IDS"
-	automaticallyAmputate string = "AUTOMATICALLY_AMPUTATE"
-	botId                 string = "BOT_ID"
-	dbHost                string = "DB_HOST"
-	dbName                string = "DB_NAME"
-	dbPassword            string = "DB_PASSWORD"
-	dbUser                string = "DB_USER"
-	guessAndCheck         string = "GUESS_AND_CHECK"
-	logLevel              string = "LOG_LEVEL"
-	maxDepth              string = "MAX_DEPTH"
-	token                 string = "TOKEN"
-)
-
 var (
-	env   map[string]string
-	stats = map[string]int{
-		"messagesSeen":        0,
-		"messagesActedOn":     0,
-		"messagesSent":        0,
-		"callsToAmputatorApi": 0,
-		"urlsAmputated":       0,
-		"serversWatched":      0,
-	}
+	config amputatorBotConfig
 )
 
 func init() {
-	// Read from .env first
-	env, _ = godotenv.Read(".env")
-
-	// Override with values from environment
-	for _, envDeclaration := range os.Environ() {
-		parsedDeclaration := strings.SplitN(envDeclaration, "=", 2)
-		env[parsedDeclaration[0]] = parsedDeclaration[1]
-	}
+	// Read from .env and override from the local environment
+	dotEnvFeeder := feeder.DotEnv{Path: ".env"}
+	envFeeder := feeder.Env{}
+	cfg.New().AddFeeder(dotEnvFeeder).AddStruct(&config).Feed()
+	cfg.New().AddFeeder(envFeeder).AddStruct(&config).Feed()
 
 	logLevelSelection := log.InfoLevel
 	switch {
-	case strings.EqualFold(env[logLevel], "debug"):
+	case strings.EqualFold(config.logLevel, "trace"):
+		logLevelSelection = log.TraceLevel
+		log.SetReportCaller(true)
+	case strings.EqualFold(config.logLevel, "debug"):
 		logLevelSelection = log.DebugLevel
 		log.SetReportCaller(true)
-	case strings.EqualFold(env[logLevel], "info"):
+	case strings.EqualFold(config.logLevel, "info"):
 		logLevelSelection = log.InfoLevel
-	case strings.EqualFold(env[logLevel], "warn"):
+	case strings.EqualFold(config.logLevel, "warn"):
 		logLevelSelection = log.WarnLevel
-	case strings.EqualFold(env[logLevel], "error"):
+	case strings.EqualFold(config.logLevel, "error"):
 		logLevelSelection = log.ErrorLevel
 	}
 	log.SetLevel(logLevelSelection)
@@ -74,33 +51,32 @@ func init() {
 }
 
 func main() {
+	// Set up DB connection as a property of a new amputatorBot
 	dbConnected := true
-	dsn := fmt.Sprintf("%v:%v@tcp(%v)/%v", env[dbUser], env[dbPassword], env[dbHost], env[dbName])
-	db, err := sql.Open("mysql", dsn)
+	dsn := fmt.Sprintf("%v:%v@tcp(%v)/%v", config.dbUser, config.dbPassword, config.dbHost, config.dbName)
+	db, err := sqlx.Open("mysql", dsn)
 	if err != nil {
 		dbConnected = false
 	}
 	defer db.Close()
 
-	id, err := strconv.Atoi(env[botId])
-	if err != nil {
-		id = 1
-	}
 	bot := amputatorBot{
-		dbConnected:  dbConnected,
-		dbConnection: db,
-		id:           id,
-		stats:        stats,
-		updateStats:  make(chan map[string]int, 10),
+		db:          db,
+		dbConnected: dbConnected,
+		dbUpdates:   make(chan string, 10),
+		info:        botInfo{ID: config.botId},
+		infoUpdates: make(chan botInfo, 10),
 	}
-	bot, botError := bot.updateOrInitializeBotStats()
-	if botError != nil {
-		log.Warn("unable to set up stats: ", botError)
-		bot.dbConnected = false
+
+	// create a new amputatorBot, with optional database connection
+	bot.initializeStats()
+	if err != nil {
+		log.Error("unable to create new bot: ", err)
+		os.Exit(1)
 	}
 
 	// Create a new Discord session using the provided bot token.
-	dg, err := discordgo.New("Bot " + env[token])
+	dg, err := discordgo.New("Bot " + config.token)
 	if err != nil {
 		log.Error("error creating Discord session: ", err)
 		os.Exit(1)
@@ -109,7 +85,11 @@ func main() {
 
 	// Start the stats handler
 	go bot.statsHandler()
-	defer close(bot.updateStats)
+	defer close(bot.infoUpdates)
+
+	// Start the db handler
+	go bot.dbHandler()
+	defer close(bot.dbUpdates)
 
 	dg.AddHandler(bot.botReady)
 	dg.AddHandler(bot.guildCreate)
@@ -135,30 +115,33 @@ func main() {
 	dg.Close()
 }
 
-func (bot amputatorBot) botReady(s *discordgo.Session, r *discordgo.Ready) {
+func (bot *amputatorBot) botReady(s *discordgo.Session, r *discordgo.Ready) {
 	go bot.updateServersWatched(s, len(s.State.Guilds))
 }
 
-func (bot amputatorBot) guildCreate(s *discordgo.Session, g *discordgo.GuildCreate) {
+func (bot *amputatorBot) guildCreate(s *discordgo.Session, g *discordgo.GuildCreate) {
 	go bot.updateServersWatched(s, len(s.State.Guilds))
 }
 
-func (bot amputatorBot) statsHandler() {
-	for stats := range bot.updateStats {
-		for stat, value := range stats {
-			bot.stats[stat] = value
-			err := bot.writeStatToDatabase(stat, value)
-			if err != nil {
-				log.Error("unable to write stat to database: ", err)
-			}
+func (bot *amputatorBot) statsHandler() {
+	for stats := range bot.infoUpdates {
+		bot.info = stats
+	}
+}
+
+func (bot *amputatorBot) dbHandler() {
+	for queryFragment := range bot.dbUpdates {
+		err := bot.updateValueInDb(queryFragment)
+		if err != nil {
+			log.Error("error updating value in db: ", err)
 		}
 	}
 }
 
 // This function will be called (due to AddHandler above) every time a new
 // message is created on any channel that the authenticated bot has access to.
-func (bot amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	bot.updateStats <- map[string]int{"messagesSeen": bot.stats["messagesSeen"] + 1}
+func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+	bot.updateMessagesSeen(bot.info.MessagesSeen + 1)
 
 	// Ignore all messages created by the bot itself
 	// This isn't required in this specific example but it's a good practice.
@@ -169,8 +152,8 @@ func (bot amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Message
 	// Check if this is a direct message
 	if m.GuildID == "" {
 		if strings.HasPrefix(m.Content, "!stats") {
-			log.Debug("!stats called by ", m.Author.Username, "(", m.Author.ID, ")")
-			bot.updateStats <- map[string]int{"messagesActedOn": bot.stats["messagesActedOn"] + 1}
+			log.Info("!stats called by ", m.Author.Username, "(", m.Author.ID, ")")
+			bot.updateMessagesActedOn(bot.info.MessagesActedOn + 1)
 			go bot.handleMessageWithStats(s, m)
 			return
 		}
@@ -180,13 +163,13 @@ func (bot amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Message
 	// to the ampRegex.
 	obj, _ := regexp.Match(ampRegex, []byte(m.Content))
 	if obj == true {
-		log.Debug("message appears to have an AMP URL")
-		if env[automaticallyAmputate] != "" {
-			bot.updateStats <- map[string]int{"messagesActedOn": bot.stats["messagesActedOn"] + 1}
+		log.Debug("message appears to have an AMP URL: ", m.Content)
+		if config.automaticallyAmputate {
+			bot.updateMessagesActedOn(bot.info.MessagesActedOn + 1)
 			go bot.handleMessageWithAmpUrls(s, m)
 			return
 		} else {
-			log.Info("URLs were not amputated because ", automaticallyAmputate, " was not set")
+			log.Info("URLs were not amputated because automatic amputation is not enabled")
 			return
 		}
 	}
