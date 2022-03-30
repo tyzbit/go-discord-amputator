@@ -1,13 +1,17 @@
 package main
 
-import "github.com/jmoiron/sqlx"
+import (
+	"sync"
+
+	"github.com/jmoiron/sqlx"
+)
 
 type amputatorBot struct {
 	db          *sqlx.DB
 	dbConnected bool
 	dbUpdates   chan string
 	info        botInfo
-	infoUpdates chan botInfo
+	infoUpdates sync.Mutex
 }
 
 type amputatorBotConfig struct {

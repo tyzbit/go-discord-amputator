@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"regexp"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -65,7 +66,7 @@ func main() {
 		dbConnected: dbConnected,
 		dbUpdates:   make(chan string, 10),
 		info:        botInfo{ID: config.botId},
-		infoUpdates: make(chan botInfo, 10),
+		infoUpdates: sync.Mutex{},
 	}
 
 	// Initialize stats, optionally pulling from the database
@@ -78,10 +79,6 @@ func main() {
 		os.Exit(1)
 		return
 	}
-
-	// Start the stats handler
-	go bot.statsHandler()
-	defer close(bot.infoUpdates)
 
 	// Start the db handler
 	go bot.dbHandler()
@@ -124,7 +121,7 @@ func (bot *amputatorBot) guildCreate(s *discordgo.Session, g *discordgo.GuildCre
 // This function will be called (due to AddHandler above) every time a new
 // message is created on any channel that the authenticated bot has access to.
 func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	bot.updateMessagesSeen(bot.info.MessagesSeen + 1)
+	bot.setMessagesSeen(bot.info.MessagesSeen + 1)
 
 	// Ignore all messages created by the bot itself
 	// This isn't required in this specific example but it's a good practice.

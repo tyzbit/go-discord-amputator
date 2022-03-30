@@ -7,19 +7,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Watches the infoUpdates channel (botInfo type) and updates bot info
-func (bot *amputatorBot) statsHandler() {
-	for stats := range bot.infoUpdates {
-		bot.info = stats
-	}
-}
-
 // updateMessagesSeen updates the messages seen value in both the local bot
 // stats and in the database
-func (bot *amputatorBot) updateMessagesSeen(i int) {
-	localStats := bot.info
-	localStats.MessagesSeen = i
-	bot.infoUpdates <- localStats
+func (bot *amputatorBot) setMessagesSeen(i int) {
+	bot.infoUpdates.Lock()
+	bot.info.MessagesSeen = i
+	bot.infoUpdates.Unlock()
 
 	field := getBotInfoTagValue("db", "MessagesSeen")
 	if field == "" {
@@ -31,10 +24,10 @@ func (bot *amputatorBot) updateMessagesSeen(i int) {
 
 // updateMessagesActedOn updates the messages acted on value in both the
 // local bot stats and in the database
-func (bot *amputatorBot) updateMessagesActedOn(i int) {
-	localStats := bot.info
-	localStats.MessagesActedOn = i
-	bot.infoUpdates <- localStats
+func (bot *amputatorBot) setMessagesActedOn(i int) {
+	bot.infoUpdates.Lock()
+	bot.info.MessagesActedOn = i
+	bot.infoUpdates.Unlock()
 
 	field := getBotInfoTagValue("db", "MessagesActedOn")
 	if field == "" {
@@ -46,10 +39,10 @@ func (bot *amputatorBot) updateMessagesActedOn(i int) {
 
 // updateMessagesSent updates the messages sent value in both the
 // local bot stats and in the database
-func (bot *amputatorBot) updateMessagesSent(i int) {
-	localStats := bot.info
-	localStats.MessagesSent = i
-	bot.infoUpdates <- localStats
+func (bot *amputatorBot) setMessagesSent(i int) {
+	bot.infoUpdates.Lock()
+	bot.info.MessagesSent = i
+	bot.infoUpdates.Unlock()
 
 	field := getBotInfoTagValue("db", "MessagesSent")
 	if field == "" {
@@ -61,10 +54,10 @@ func (bot *amputatorBot) updateMessagesSent(i int) {
 
 // CallsToAmputatorAPI updates the calls to Amputator API value
 // in both the local bot stats and in the database
-func (bot *amputatorBot) updateCallsToAmputatorApi(i int) {
-	localStats := bot.info
-	localStats.CallsToAmputatorAPI = i
-	bot.infoUpdates <- localStats
+func (bot *amputatorBot) setCallsToAmputatorApi(i int) {
+	bot.infoUpdates.Lock()
+	bot.info.CallsToAmputatorAPI = i
+	bot.infoUpdates.Unlock()
 
 	field := getBotInfoTagValue("db", "CallsToAmputatorAPI")
 	if field == "" {
@@ -76,10 +69,10 @@ func (bot *amputatorBot) updateCallsToAmputatorApi(i int) {
 
 // URLsAmputated updates the URLs amputated value
 // in both the local bot stats and in the database
-func (bot *amputatorBot) updateUrlsAmputated(i int) {
-	localStats := bot.info
-	localStats.URLsAmputated = i
-	bot.infoUpdates <- localStats
+func (bot *amputatorBot) setUrlsAmputated(i int) {
+	bot.infoUpdates.Lock()
+	bot.info.URLsAmputated = i
+	bot.infoUpdates.Unlock()
 
 	field := getBotInfoTagValue("db", "URLsAmputated")
 	if field == "" {
@@ -107,9 +100,9 @@ func (bot *amputatorBot) updateServersWatched(s *discordgo.Session, i int) {
 	}
 
 	field := getBotInfoTagValue("db", "ServersWatched")
-	localStats := bot.info
-	localStats.ServersWatched = i
-	bot.infoUpdates <- localStats
+	bot.infoUpdates.Lock()
+	bot.info.ServersWatched = i
+	bot.infoUpdates.Unlock()
 	if field == "" {
 		log.Error("db tag was blank for ServersWatched")
 		return

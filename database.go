@@ -19,7 +19,7 @@ func (bot *amputatorBot) dbHandler() {
 }
 
 // writeStatToDatabase writes a particular stat to the database.
-// it takes "KEY = VALUE" which is used in the SQL UPDATE statement.
+// It takes "KEY = VALUE" which is used in the SQL UPDATE statement.
 func (bot *amputatorBot) updateValueInDb(queryFragment string) error {
 	statement := "UPDATE stats SET " + queryFragment +
 		" WHERE " + getBotInfoTagValue("db", "ID") + " = " + fmt.Sprintf("%v", bot.info.ID) + ";"

@@ -25,11 +25,10 @@ func (bot *amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discord
 		formattedStats := getBotInfoTagValue("pretty", "ServersWatched") + ": " + fmt.Sprintf("%v", bot.info.ServersWatched) + "\n" +
 			getBotInfoTagValue("pretty", "MessagesSeen") + ": " + fmt.Sprintf("%v", bot.info.MessagesSeen) + "\n" +
 			getBotInfoTagValue("pretty", "MessagesSent") + ": " + fmt.Sprintf("%v", bot.info.MessagesSent) + "\n" +
-			getBotInfoTagValue("pretty", "MessagesActedOn") + ": " + fmt.Sprintf("%v", bot.info.MessagesActedOn+1) + "\n" +
+			getBotInfoTagValue("pretty", "MessagesActedOn") + ": " + fmt.Sprintf("%v", bot.info.MessagesActedOn) + "\n" +
 			getBotInfoTagValue("pretty", "CallsToAmputatorAPI") + ": " + fmt.Sprintf("%v", bot.info.CallsToAmputatorAPI) + "\n" +
 			getBotInfoTagValue("pretty", "URLsAmputated") + ": " + fmt.Sprintf("%v", bot.info.URLsAmputated)
 
-		bot.updateMessagesSent(bot.info.MessagesSent + 1)
 		embed := &discordgo.MessageEmbed{
 			Title:       "Amputation Stats",
 			Description: formattedStats,
@@ -42,7 +41,8 @@ func (bot *amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discord
 			log.Error("unable to send embed: ", err)
 		}
 
-		bot.updateMessagesActedOn(bot.info.MessagesActedOn + 1)
+		bot.setMessagesSent(bot.info.MessagesSent + 1)
+		bot.setMessagesActedOn(bot.info.MessagesActedOn + 1)
 	} else {
 		log.Info("did not respond to ", m.Author.Username,
 			"(", m.Author.ID, ") because user is not an administrator")
@@ -80,11 +80,11 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 		Title:       "Problem Amputating",
 		Description: "Sorry, I couldn't amputate that link.",
 	}
-	bot.updateCallsToAmputatorApi(bot.info.CallsToAmputatorAPI + 1)
+	bot.setCallsToAmputatorApi(bot.info.CallsToAmputatorAPI + 1)
 	amputatedLinks, err := amputator.Amputate(urls, options)
 	if err != nil {
 		log.Error("error calling Amputator API: ", err)
-		bot.updateMessagesSent(bot.info.MessagesSent + 1)
+		bot.setMessagesSent(bot.info.MessagesSent + 1)
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
 		if err != nil {
 			log.Error("unable to send embed: ", err)
@@ -96,14 +96,15 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 	// a generic failure message.
 	if len(amputatedLinks) == 0 {
 		log.Warn("amputator bot returned no Amputated URLs from: ", strings.Join(urls, ", "))
-		bot.updateMessagesSent(bot.info.MessagesSent + 1)
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
 		if err != nil {
 			log.Error("unable to send embed: ", err)
+			return
 		}
+		bot.setMessagesSent(bot.info.MessagesSent + 1)
 		return
 	}
-	bot.updateUrlsAmputated(bot.info.URLsAmputated + len(amputatedLinks))
+	bot.setUrlsAmputated(bot.info.URLsAmputated + len(amputatedLinks))
 
 	plural := ""
 	if len(amputatedLinks) > 1 {
@@ -133,6 +134,6 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 		log.Error("unable to send embed: ", err)
 	}
 
-	bot.updateMessagesActedOn(bot.info.MessagesActedOn + 1)
-	bot.updateMessagesSent(bot.info.MessagesSent + 1)
+	bot.setMessagesActedOn(bot.info.MessagesActedOn + 1)
+	bot.setMessagesSent(bot.info.MessagesSent + 1)
 }
