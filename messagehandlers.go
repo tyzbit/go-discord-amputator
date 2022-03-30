@@ -20,6 +20,7 @@ func (bot *amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discord
 		}
 	}
 
+	// Update this if the botInfo struct changes
 	if administrator {
 		formattedStats := getBotInfoTagValue("pretty", "ServersWatched") + ": " + fmt.Sprintf("%v", bot.info.ServersWatched) + "\n" +
 			getBotInfoTagValue("pretty", "MessagesSeen") + ": " + fmt.Sprintf("%v", bot.info.MessagesSeen) + "\n" +

@@ -9,9 +9,11 @@ import (
 // Watches the dbUpdates channel and runs DB queries
 func (bot *amputatorBot) dbHandler() {
 	for queryFragment := range bot.dbUpdates {
-		err := bot.updateValueInDb(queryFragment)
-		if err != nil {
-			log.Error("error updating value in db: ", err)
+		if bot.dbConnected {
+			err := bot.updateValueInDb(queryFragment)
+			if err != nil {
+				log.Error("error updating value in db: ", err)
+			}
 		}
 	}
 }
@@ -19,24 +21,22 @@ func (bot *amputatorBot) dbHandler() {
 // writeStatToDatabase writes a particular stat to the database.
 // it takes "KEY = VALUE" which is used in the SQL UPDATE statement.
 func (bot *amputatorBot) updateValueInDb(queryFragment string) error {
-	if bot.dbConnected {
-		statement := "UPDATE stats SET " + queryFragment +
-			" WHERE " + getBotInfoTagValue("db", "ID") + " = " + fmt.Sprintf("%v", bot.info.ID) + ";"
+	statement := "UPDATE stats SET " + queryFragment +
+		" WHERE " + getBotInfoTagValue("db", "ID") + " = " + fmt.Sprintf("%v", bot.info.ID) + ";"
 
-		log.Trace("updateValueInDb query(", statement, ")")
-		result, err := bot.db.Exec(statement)
-		if err != nil {
-			log.Warn("unable to run query(", queryFragment, "): ", err)
-			return err
-		}
-
-		r, err := result.RowsAffected()
-		if err != nil {
-			log.Warn("unable to determine rows affected, query(", queryFragment, "): ", err)
-			return err
-		}
-		log.Trace(r, " rows affected")
+	log.Trace("updateValueInDb query(", statement, ")")
+	result, err := bot.db.Exec(statement)
+	if err != nil {
+		log.Warn("unable to run query(", queryFragment, "): ", err)
+		return err
 	}
+
+	r, err := result.RowsAffected()
+	if err != nil {
+		log.Warn("unable to determine rows affected, query(", queryFragment, "): ", err)
+		return err
+	}
+	log.Trace(r, " rows affected")
 	return nil
 }
 
