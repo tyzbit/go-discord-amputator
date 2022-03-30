@@ -7,13 +7,21 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Watches the infoUpdates channel (botInfo type) and updates bot info
+func (bot *amputatorBot) statsHandler() {
+	for stats := range bot.infoUpdates {
+		bot.info = stats
+	}
+}
+
 // updateMessagesSeen updates the messages seen value in both the local bot
 // stats and in the database
 func (bot *amputatorBot) updateMessagesSeen(i int) {
-	field := getBotInfoTagValue("db", "MessagesSeen")
 	localStats := bot.info
 	localStats.MessagesSeen = i
 	bot.infoUpdates <- localStats
+
+	field := getBotInfoTagValue("db", "MessagesSeen")
 	if field == "" {
 		log.Error("db tag was blank for MessagesSeen")
 		return
@@ -24,10 +32,11 @@ func (bot *amputatorBot) updateMessagesSeen(i int) {
 // updateMessagesActedOn updates the messages acted on value in both the
 // local bot stats and in the database
 func (bot *amputatorBot) updateMessagesActedOn(i int) {
-	field := getBotInfoTagValue("db", "MessagesActedOn")
 	localStats := bot.info
 	localStats.MessagesActedOn = i
 	bot.infoUpdates <- localStats
+
+	field := getBotInfoTagValue("db", "MessagesActedOn")
 	if field == "" {
 		log.Error("db tag was blank for MessagesActedOn")
 		return
@@ -38,10 +47,11 @@ func (bot *amputatorBot) updateMessagesActedOn(i int) {
 // updateMessagesSent updates the messages sent value in both the
 // local bot stats and in the database
 func (bot *amputatorBot) updateMessagesSent(i int) {
-	field := getBotInfoTagValue("db", "MessagesSent")
 	localStats := bot.info
 	localStats.MessagesSent = i
 	bot.infoUpdates <- localStats
+
+	field := getBotInfoTagValue("db", "MessagesSent")
 	if field == "" {
 		log.Error("db tag was blank for MessagesSent")
 		return
@@ -52,10 +62,11 @@ func (bot *amputatorBot) updateMessagesSent(i int) {
 // CallsToAmputatorAPI updates the calls to Amputator API value
 // in both the local bot stats and in the database
 func (bot *amputatorBot) updateCallsToAmputatorApi(i int) {
-	field := getBotInfoTagValue("db", "CallsToAmputatorAPI")
 	localStats := bot.info
 	localStats.CallsToAmputatorAPI = i
 	bot.infoUpdates <- localStats
+
+	field := getBotInfoTagValue("db", "CallsToAmputatorAPI")
 	if field == "" {
 		log.Error("db tag was blank for CallsToAmputatorAPI")
 		return
@@ -66,10 +77,11 @@ func (bot *amputatorBot) updateCallsToAmputatorApi(i int) {
 // URLsAmputated updates the URLs amputated value
 // in both the local bot stats and in the database
 func (bot *amputatorBot) updateUrlsAmputated(i int) {
-	field := getBotInfoTagValue("db", "URLsAmputated")
 	localStats := bot.info
 	localStats.URLsAmputated = i
 	bot.infoUpdates <- localStats
+
+	field := getBotInfoTagValue("db", "URLsAmputated")
 	if field == "" {
 		log.Error("db tag was blank for URLsAmputated")
 		return

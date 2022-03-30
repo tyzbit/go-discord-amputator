@@ -28,8 +28,8 @@ func init() {
 	// Read from .env and override from the local environment
 	dotEnvFeeder := feeder.DotEnv{Path: ".env"}
 	envFeeder := feeder.Env{}
-	cfg.New().AddFeeder(dotEnvFeeder).AddStruct(&config).Feed()
-	cfg.New().AddFeeder(envFeeder).AddStruct(&config).Feed()
+	_ = cfg.New().AddFeeder(dotEnvFeeder).AddStruct(&config).Feed()
+	_ = cfg.New().AddFeeder(envFeeder).AddStruct(&config).Feed()
 
 	logLevelSelection := log.InfoLevel
 	switch {
@@ -123,21 +123,6 @@ func (bot *amputatorBot) guildCreate(s *discordgo.Session, g *discordgo.GuildCre
 	go bot.updateServersWatched(s, len(s.State.Guilds))
 }
 
-func (bot *amputatorBot) statsHandler() {
-	for stats := range bot.infoUpdates {
-		bot.info = stats
-	}
-}
-
-func (bot *amputatorBot) dbHandler() {
-	for queryFragment := range bot.dbUpdates {
-		err := bot.updateValueInDb(queryFragment)
-		if err != nil {
-			log.Error("error updating value in db: ", err)
-		}
-	}
-}
-
 // This function will be called (due to AddHandler above) every time a new
 // message is created on any channel that the authenticated bot has access to.
 func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -153,7 +138,6 @@ func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Messag
 	if m.GuildID == "" {
 		if strings.HasPrefix(m.Content, "!stats") {
 			log.Info("!stats called by ", m.Author.Username, "(", m.Author.ID, ")")
-			bot.updateMessagesActedOn(bot.info.MessagesActedOn + 1)
 			go bot.handleMessageWithStats(s, m)
 			return
 		}
@@ -165,7 +149,6 @@ func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Messag
 	if obj == true {
 		log.Debug("message appears to have an AMP URL: ", m.Content)
 		if config.automaticallyAmputate {
-			bot.updateMessagesActedOn(bot.info.MessagesActedOn + 1)
 			go bot.handleMessageWithAmpUrls(s, m)
 			return
 		} else {

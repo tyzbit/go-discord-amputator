@@ -24,7 +24,7 @@ func (bot *amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discord
 		formattedStats := getBotInfoTagValue("pretty", "ServersWatched") + ": " + fmt.Sprintf("%v", bot.info.ServersWatched) + "\n" +
 			getBotInfoTagValue("pretty", "MessagesSeen") + ": " + fmt.Sprintf("%v", bot.info.MessagesSeen) + "\n" +
 			getBotInfoTagValue("pretty", "MessagesSent") + ": " + fmt.Sprintf("%v", bot.info.MessagesSent) + "\n" +
-			getBotInfoTagValue("pretty", "MessagesActedOn") + ": " + fmt.Sprintf("%v", bot.info.MessagesActedOn) + "\n" +
+			getBotInfoTagValue("pretty", "MessagesActedOn") + ": " + fmt.Sprintf("%v", bot.info.MessagesActedOn+1) + "\n" +
 			getBotInfoTagValue("pretty", "CallsToAmputatorAPI") + ": " + fmt.Sprintf("%v", bot.info.CallsToAmputatorAPI) + "\n" +
 			getBotInfoTagValue("pretty", "URLsAmputated") + ": " + fmt.Sprintf("%v", bot.info.URLsAmputated)
 
@@ -34,12 +34,14 @@ func (bot *amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discord
 			Description: formattedStats,
 		}
 
-		// Respond to !stats command with formattedStats
+		// Respond to !stats command with the formatted stats embed
 		log.Info("sending !stats response to ", m.Author.Username, "(", m.Author.ID, ")")
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, embed)
 		if err != nil {
 			log.Error("unable to send embed: ", err)
 		}
+
+		bot.updateMessagesActedOn(bot.info.MessagesActedOn + 1)
 	} else {
 		log.Info("did not respond to ", m.Author.Username,
 			"(", m.Author.ID, ") because user is not an administrator")
@@ -130,5 +132,6 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 		log.Error("unable to send embed: ", err)
 	}
 
+	bot.updateMessagesActedOn(bot.info.MessagesActedOn + 1)
 	bot.updateMessagesSent(bot.info.MessagesSent + 1)
 }

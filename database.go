@@ -6,6 +6,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Watches the dbUpdates channel and runs DB queries
+func (bot *amputatorBot) dbHandler() {
+	for queryFragment := range bot.dbUpdates {
+		err := bot.updateValueInDb(queryFragment)
+		if err != nil {
+			log.Error("error updating value in db: ", err)
+		}
+	}
+}
+
 // writeStatToDatabase writes a particular stat to the database.
 // it takes "KEY = VALUE" which is used in the SQL UPDATE statement.
 func (bot *amputatorBot) updateValueInDb(queryFragment string) error {
