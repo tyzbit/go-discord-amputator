@@ -33,5 +33,3 @@ services:
       TOKEN: ${TOKEN}
 volumes:
   db_data: {}
-  wordpress_data: {}
-

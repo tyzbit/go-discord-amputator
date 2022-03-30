@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"os/signal"
@@ -13,6 +12,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	cfg "github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
+	"github.com/jmoiron/sqlx"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -33,6 +33,9 @@ func init() {
 
 	logLevelSelection := log.InfoLevel
 	switch {
+	case strings.EqualFold(config.logLevel, "trace"):
+		logLevelSelection = log.TraceLevel
+		log.SetReportCaller(true)
 	case strings.EqualFold(config.logLevel, "debug"):
 		logLevelSelection = log.DebugLevel
 		log.SetReportCaller(true)
@@ -48,26 +51,28 @@ func init() {
 }
 
 func main() {
+	// Set up DB connection as a property of a new amputatorBot
 	dbConnected := true
 	dsn := fmt.Sprintf("%v:%v@tcp(%v)/%v", config.dbUser, config.dbPassword, config.dbHost, config.dbName)
-	db, err := sql.Open("mysql", dsn)
+	db, err := sqlx.Open("mysql", dsn)
 	if err != nil {
 		dbConnected = false
 	}
 	defer db.Close()
 
 	bot := amputatorBot{
-		id:           config.botId,
-		dbChannel:    make(chan string, 10),
-		dbConnected:  dbConnected,
-		dbConnection: db,
-		currentStats: amputatorStats{},
-		statsChannel: make(chan amputatorStats, 10),
+		db:          db,
+		dbConnected: dbConnected,
+		dbUpdates:   make(chan string, 10),
+		info:        botInfo{ID: config.botId},
+		infoUpdates: make(chan botInfo, 10),
 	}
-	bot, botError := bot.initializeBotStats()
-	if botError != nil {
-		log.Warn("unable to set up stats: ", botError)
-		bot.dbConnected = false
+
+	// create a new amputatorBot, with optional database connection
+	bot.initializeStats()
+	if err != nil {
+		log.Error("unable to create new bot: ", err)
+		os.Exit(1)
 	}
 
 	// Create a new Discord session using the provided bot token.
@@ -80,11 +85,11 @@ func main() {
 
 	// Start the stats handler
 	go bot.statsHandler()
-	defer close(bot.statsChannel)
+	defer close(bot.infoUpdates)
 
 	// Start the db handler
 	go bot.dbHandler()
-	defer close(bot.dbChannel)
+	defer close(bot.dbUpdates)
 
 	dg.AddHandler(bot.botReady)
 	dg.AddHandler(bot.guildCreate)
@@ -119,13 +124,13 @@ func (bot *amputatorBot) guildCreate(s *discordgo.Session, g *discordgo.GuildCre
 }
 
 func (bot *amputatorBot) statsHandler() {
-	for stats := range bot.statsChannel {
-		bot.currentStats = stats
+	for stats := range bot.infoUpdates {
+		bot.info = stats
 	}
 }
 
 func (bot *amputatorBot) dbHandler() {
-	for queryFragment := range bot.dbChannel {
+	for queryFragment := range bot.dbUpdates {
 		err := bot.updateValueInDb(queryFragment)
 		if err != nil {
 			log.Error("error updating value in db: ", err)
@@ -136,7 +141,7 @@ func (bot *amputatorBot) dbHandler() {
 // This function will be called (due to AddHandler above) every time a new
 // message is created on any channel that the authenticated bot has access to.
 func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	bot.updateMessagesSeen(bot.currentStats.messagesSeen + 1)
+	bot.updateMessagesSeen(bot.info.MessagesSeen + 1)
 
 	// Ignore all messages created by the bot itself
 	// This isn't required in this specific example but it's a good practice.
@@ -147,8 +152,8 @@ func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Messag
 	// Check if this is a direct message
 	if m.GuildID == "" {
 		if strings.HasPrefix(m.Content, "!stats") {
-			log.Debug("!stats called by ", m.Author.Username, "(", m.Author.ID, ")")
-			bot.updateMessagesActedOn(bot.currentStats.messagesActedOn + 1)
+			log.Info("!stats called by ", m.Author.Username, "(", m.Author.ID, ")")
+			bot.updateMessagesActedOn(bot.info.MessagesActedOn + 1)
 			go bot.handleMessageWithStats(s, m)
 			return
 		}
@@ -158,9 +163,9 @@ func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Messag
 	// to the ampRegex.
 	obj, _ := regexp.Match(ampRegex, []byte(m.Content))
 	if obj == true {
-		log.Debug("message appears to have an AMP URL")
+		log.Debug("message appears to have an AMP URL: ", m.Content)
 		if config.automaticallyAmputate {
-			bot.updateMessagesActedOn(bot.currentStats.messagesActedOn + 1)
+			bot.updateMessagesActedOn(bot.info.MessagesActedOn + 1)
 			go bot.handleMessageWithAmpUrls(s, m)
 			return
 		} else {

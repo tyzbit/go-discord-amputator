@@ -21,27 +21,28 @@ func (bot *amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discord
 	}
 
 	if administrator {
-		formattedStats := getTagValueByTag("pretty", "serversWatched") + ": " + fmt.Sprintf("%v", bot.currentStats.serversWatched) + "\n" +
-			getTagValueByTag("pretty", "messagesSeen") + ": " + fmt.Sprintf("%v", bot.currentStats.messagesSeen) + "\n" +
-			getTagValueByTag("pretty", "messagesSent") + ": " + fmt.Sprintf("%v", bot.currentStats.messagesSent) + "\n" +
-			getTagValueByTag("pretty", "messagesActedOn") + ": " + fmt.Sprintf("%v", bot.currentStats.messagesActedOn) + "\n" +
-			getTagValueByTag("pretty", "callsToAmputatorApi") + ": " + fmt.Sprintf("%v", bot.currentStats.callsToAmputatorApi) + "\n" +
-			getTagValueByTag("pretty", "urlsAmputated") + ": " + fmt.Sprintf("%v", bot.currentStats.urlsAmputated) + "\n"
+		formattedStats := getBotInfoTagValue("pretty", "ServersWatched") + ": " + fmt.Sprintf("%v", bot.info.ServersWatched) + "\n" +
+			getBotInfoTagValue("pretty", "MessagesSeen") + ": " + fmt.Sprintf("%v", bot.info.MessagesSeen) + "\n" +
+			getBotInfoTagValue("pretty", "MessagesSent") + ": " + fmt.Sprintf("%v", bot.info.MessagesSent) + "\n" +
+			getBotInfoTagValue("pretty", "MessagesActedOn") + ": " + fmt.Sprintf("%v", bot.info.MessagesActedOn) + "\n" +
+			getBotInfoTagValue("pretty", "CallsToAmputatorAPI") + ": " + fmt.Sprintf("%v", bot.info.CallsToAmputatorAPI) + "\n" +
+			getBotInfoTagValue("pretty", "URLsAmputated") + ": " + fmt.Sprintf("%v", bot.info.URLsAmputated)
 
-		bot.updateMessagesSent(bot.currentStats.messagesSent + 1)
+		bot.updateMessagesSent(bot.info.MessagesSent + 1)
 		embed := &discordgo.MessageEmbed{
 			Title:       "Amputation Stats",
 			Description: formattedStats,
 		}
 
 		// Respond to !stats command with formattedStats
-		log.Debug("sending !stats response to ", m.Author.Username, "(", m.Author.ID, ")")
+		log.Info("sending !stats response to ", m.Author.Username, "(", m.Author.ID, ")")
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, embed)
 		if err != nil {
 			log.Error("unable to send embed: ", err)
 		}
 	} else {
-		log.Debug("did not respond to ", m.Author.Username, " id ", m.Author.ID, " because user is not an administrator")
+		log.Info("did not respond to ", m.Author.Username,
+			"(", m.Author.ID, ") because user is not an administrator")
 	}
 }
 
@@ -76,11 +77,11 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 		Title:       "Problem Amputating",
 		Description: "Sorry, I couldn't amputate that link.",
 	}
-	bot.updateCallsToAmputatorApi(bot.currentStats.callsToAmputatorApi + 1)
+	bot.updateCallsToAmputatorApi(bot.info.CallsToAmputatorAPI + 1)
 	amputatedLinks, err := amputator.Amputate(urls, options)
 	if err != nil {
 		log.Error("error calling Amputator API: ", err)
-		bot.updateMessagesSent(bot.currentStats.messagesSent + 1)
+		bot.updateMessagesSent(bot.info.MessagesSent + 1)
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
 		if err != nil {
 			log.Error("unable to send embed: ", err)
@@ -92,14 +93,14 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 	// a generic failure message.
 	if len(amputatedLinks) == 0 {
 		log.Warn("amputator bot returned no Amputated URLs from: ", strings.Join(urls, ", "))
-		bot.updateMessagesSent(bot.currentStats.messagesSent + 1)
+		bot.updateMessagesSent(bot.info.MessagesSent + 1)
 		_, err := s.ChannelMessageSendEmbed(m.ChannelID, genericLinkAmputationFailureMessage)
 		if err != nil {
 			log.Error("unable to send embed: ", err)
 		}
 		return
 	}
-	bot.updateUrlsAmputated(bot.currentStats.urlsAmputated + len(amputatedLinks))
+	bot.updateUrlsAmputated(bot.info.URLsAmputated + len(amputatedLinks))
 
 	plural := ""
 	if len(amputatedLinks) > 1 {
@@ -121,11 +122,13 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 		guildName = guild.Name
 	}
 
-	log.Debug("sending amputate message response in ", guildName, "(", m.GuildID, "), calling user: ", m.Author.Username, "(", m.Author.ID, ")")
+	log.Debug("sending amputate message response in ",
+		guildName, "(", m.GuildID, "), calling user: ",
+		m.Author.Username, "(", m.Author.ID, ")")
 	_, err = s.ChannelMessageSendEmbed(m.ChannelID, embed)
 	if err != nil {
 		log.Error("unable to send embed: ", err)
 	}
 
-	bot.updateMessagesSent(bot.currentStats.messagesSent + 1)
+	bot.updateMessagesSent(bot.info.MessagesSent + 1)
 }

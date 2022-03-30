@@ -1,16 +1,13 @@
 package main
 
-import (
-	"database/sql"
-)
+import "github.com/jmoiron/sqlx"
 
 type amputatorBot struct {
-	id           int
-	dbChannel    chan string
-	dbConnected  bool
-	dbConnection *sql.DB
-	currentStats amputatorStats
-	statsChannel chan amputatorStats
+	db          *sqlx.DB
+	dbConnected bool
+	dbUpdates   chan string
+	info        botInfo
+	infoUpdates chan botInfo
 }
 
 type amputatorBotConfig struct {
@@ -27,11 +24,12 @@ type amputatorBotConfig struct {
 	token                 string   `env:"TOKEN"`
 }
 
-type amputatorStats struct {
-	messagesSeen        int `sql:"messagesSeen" pretty:"Messages Seen"`
-	messagesActedOn     int `sql:"messagesActedOn" pretty:"Messages Acted On"`
-	messagesSent        int `sql:"messagesSent" pretty:"Messages Sent"`
-	callsToAmputatorApi int `sql:"callsToAmputatorApi" pretty:"Calls to Amputator API"`
-	urlsAmputated       int `sql:"urlsAmputated" pretty:"URLs Amputated"`
-	serversWatched      int `sql:"serversWatched" pretty:"Servers Watched"`
+type botInfo struct {
+	ID                  int `db:"botId" pretty:"Bot ID"`
+	MessagesSeen        int `db:"messagesSeen" pretty:"Messages Seen"`
+	MessagesActedOn     int `db:"messagesActedOn" pretty:"Messages Acted On"`
+	MessagesSent        int `db:"messagesSent" pretty:"Messages Sent"`
+	CallsToAmputatorAPI int `db:"callsToAmputatorApi" pretty:"Calls to Amputator API"`
+	URLsAmputated       int `db:"urlsAmputated" pretty:"URLs Amputated"`
+	ServersWatched      int `db:"serversWatched" pretty:"Servers Watched"`
 }
