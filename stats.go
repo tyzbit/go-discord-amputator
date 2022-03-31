@@ -86,6 +86,7 @@ func (bot *amputatorBot) setUrlsAmputated(i int) {
 // in both the local bot stats and in the database
 func (bot *amputatorBot) updateServersWatched(s *discordgo.Session, i int) {
 	log.Info("watching ", i, " servers")
+
 	usd := &discordgo.UpdateStatusData{Status: "online"}
 	usd.Activities = make([]*discordgo.Activity, 1)
 	usd.Activities[0] = &discordgo.Activity{
@@ -99,13 +100,15 @@ func (bot *amputatorBot) updateServersWatched(s *discordgo.Session, i int) {
 		log.Error("failed to set status: ", err)
 	}
 
-	field := getBotInfoTagValue("db", "ServersWatched")
 	bot.infoUpdates.Lock()
 	bot.info.ServersWatched = i
 	bot.infoUpdates.Unlock()
+
+	field := getBotInfoTagValue("db", "ServersWatched")
 	if field == "" {
 		log.Error("db tag was blank for ServersWatched")
 		return
 	}
+
 	bot.dbUpdates <- field + " = " + fmt.Sprintf("%v", i)
 }
