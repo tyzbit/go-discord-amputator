@@ -111,11 +111,11 @@ func main() {
 }
 
 func (bot *amputatorBot) botReady(s *discordgo.Session, r *discordgo.Ready) {
-	go bot.updateServersWatched(s, len(s.State.Guilds))
+	bot.updateServersWatched(s, len(s.State.Guilds))
 }
 
 func (bot *amputatorBot) guildCreate(s *discordgo.Session, g *discordgo.GuildCreate) {
-	go bot.updateServersWatched(s, len(s.State.Guilds))
+	bot.updateServersWatched(s, len(s.State.Guilds))
 }
 
 // This function will be called (due to AddHandler above) every time a new
