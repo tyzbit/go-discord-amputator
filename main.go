@@ -133,7 +133,7 @@ func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Messag
 	if m.GuildID == "" {
 		if strings.HasPrefix(m.Content, "!stats") {
 			log.Info("!stats called by ", m.Author.Username, "(", m.Author.ID, ")")
-			go bot.handleMessageWithStats(s, m)
+			bot.handleMessageWithStats(s, m)
 			return
 		}
 	}
@@ -144,7 +144,7 @@ func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Messag
 	if obj == true {
 		log.Debug("message appears to have an AMP URL: ", m.Content)
 		if config.automaticallyAmputate {
-			go bot.handleMessageWithAmpUrls(s, m)
+			bot.handleMessageWithAmpUrls(s, m)
 			return
 		} else {
 			log.Info("URLs were not amputated because automatic amputation is not enabled")
