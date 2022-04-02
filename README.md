@@ -15,7 +15,6 @@ Otherwise, it will save stats to a local sqlite database at `/var/go-discord-amp
 | DB_HOST | Hostname for database |
 | DB_PASSWORD | Password for database user |
 | DB_USER | Username for database user |
-| GUESS_AND_CHECK | Whether to ask the API to take guesses at what the canonical URL is |
 | LOG_LEVEL | `trace`, `debug`, `info`, `warn`, `error` |
 | TOKEN | The Discord token the bot should use |
 
