@@ -55,7 +55,7 @@ out:
 
 	embed := &discordgo.MessageEmbed{
 		Title:  "Amputation Stats",
-		Fields: structToDiscordFields(stats),
+		Fields: structToPrettyDiscordFields(stats),
 	}
 
 	// Respond to statsCommand command with the formatted stats embed

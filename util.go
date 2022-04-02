@@ -54,7 +54,7 @@ func getTagValue(i interface{}, field string, tag string) string {
 
 // Returns a multiline string that pretty prints botStats. Ripped from
 // https://stackoverflow.com/a/18927729
-func structToDiscordFields(i any) []*discordgo.MessageEmbedField {
+func structToPrettyDiscordFields(i any) []*discordgo.MessageEmbedField {
 	var fields ([]*discordgo.MessageEmbedField)
 
 	stringMapSlice := convertFlatStructToSliceStringMap(i)

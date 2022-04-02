@@ -112,7 +112,7 @@ func (bot *amputatorBot) setServerConfig(s *discordgo.Session, m *discordgo.Mess
 	case "get":
 		bot.sendMessage(s, true, false, m, &discordgo.MessageEmbed{
 			Title:  "Amputator Config",
-			Fields: structToDiscordFields(sc),
+			Fields: structToPrettyDiscordFields(sc),
 		})
 		return nil
 	case "switch":
