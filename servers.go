@@ -27,15 +27,19 @@ type serverConfig struct {
 	MaxDepth               int    `pretty:"How many links deep to go to try to find the non-AMP link"`
 }
 
-var defaultServerConfig serverConfig = serverConfig{
-	DiscordId:              "0",
-	Name:                   "default",
-	AmputationEnabled:      true,
-	ReplyToOriginalMessage: false,
-	UseEmbed:               true,
-	GuessAndCheck:          true,
-	MaxDepth:               3,
-}
+var (
+	defaultServerConfig serverConfig = serverConfig{
+		DiscordId:              "0",
+		Name:                   "default",
+		AmputationEnabled:      true,
+		ReplyToOriginalMessage: false,
+		UseEmbed:               true,
+		GuessAndCheck:          true,
+		MaxDepth:               3,
+	}
+
+	amputatorRepoUrl string = "https://github.com/tyzbit/go-discord-amputator"
+)
 
 // registerOrUpdateGuild checks if a guild is already registered in the database. If not,
 // it creates it with sensibile defaults.
@@ -102,7 +106,7 @@ func (bot *amputatorBot) setServerConfig(s *discordgo.Session, m *discordgo.Mess
 
 	errorEmbed := &discordgo.MessageEmbed{
 		Title:       "Unable to set " + value,
-		Description: "See https://github.com/tyzbit/go-discord-amputator for usage",
+		Description: "See " + amputatorRepoUrl + " for usage",
 	}
 
 	// TODO: make this not use raw fields
@@ -153,7 +157,7 @@ func (bot *amputatorBot) updateServersWatched(s *discordgo.Session) error {
 	usd.Activities[0] = &discordgo.Activity{
 		Name: fmt.Sprintf("%v servers", stats.ServersWatched),
 		Type: discordgo.ActivityTypeWatching,
-		URL:  "https://github.com/tyzbit/go-discord-amputator",
+		URL:  amputatorRepoUrl,
 	}
 
 	err := s.UpdateStatusComplex(*usd)

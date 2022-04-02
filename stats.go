@@ -12,22 +12,22 @@ type botStats struct {
 // The output here is not appropriate to send to individual servers, except
 // for ServersWatched.
 func (bot *amputatorBot) getGlobalStats() botStats {
-	var MessagesActedOn, MessagesSent, AmputationEvents, ServersWatched int64
+	var MessagesActedOn, MessagesSent, CallsToAmputatorAPI, ServersWatched int64
 	serverId := bot.dg.State.User.ID
 	amputationRows := []amputationEvent{}
 
 	bot.db.Model(&messageEvent{}).Count(&MessagesActedOn)
 	bot.db.Model(&messageEvent{}).Where(&messageEvent{AuthorId: serverId}).Count(&MessagesSent)
-	bot.db.Model(&amputationEvent{}).Count(&AmputationEvents)
+	bot.db.Model(&amputationEvent{}).Count(&CallsToAmputatorAPI)
 	bot.db.Model(&amputationEvent{}).Scan(&amputationRows)
 	bot.db.Model(&serverRegistration{}).Where(&serverRegistration{}).Count(&ServersWatched)
 
 	return botStats{
-		MessagesActedOn,
-		MessagesSent,
-		AmputationEvents,
-		int64(len(amputationRows)),
-		ServersWatched,
+		MessagesActedOn:     MessagesActedOn,
+		MessagesSent:        MessagesSent,
+		CallsToAmputatorAPI: CallsToAmputatorAPI,
+		URLsAmputated:       int64(len(amputationRows)),
+		ServersWatched:      ServersWatched,
 	}
 }
 
