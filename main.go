@@ -1,9 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -50,6 +53,8 @@ var (
 		&messageEvent{},
 	}
 
+	sqlitePath string = "/var/go-discord-amputator/local.db"
+
 	commandPrefix string = "!amp"
 	statsCommand  string = "stats"
 	configCommand string = "config"
@@ -95,10 +100,21 @@ func main() {
 	if config.dbHost != "" && config.dbName != "" && config.dbPassword != "" && config.dbUser != "" {
 		dbType = "mysql"
 		dsn := fmt.Sprintf("%v:%v@tcp(%v)/%v?parseTime=True", config.dbUser, config.dbPassword, config.dbHost, config.dbName)
+
 		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logConfig})
 	} else {
 		dbType = "sqlite"
-		db, err = gorm.Open(sqlite.Open("/var/go-discord-amputator/local.db"), &gorm.Config{Logger: logConfig})
+
+		// Create the folder path if it doesn't exist
+		_, err = os.Stat(sqlitePath)
+		if errors.Is(err, fs.ErrNotExist) {
+			dirPath := filepath.Dir(sqlitePath)
+			if err := os.MkdirAll(dirPath, 0660); err != nil {
+				log.Fatal("unable to make directory path ", dirPath, " err: ", err)
+			}
+		}
+
+		db, err = gorm.Open(sqlite.Open(sqlitePath), &gorm.Config{Logger: logConfig})
 	}
 	if err != nil {
 		log.Fatal("unable to connect to database (using "+dbType+"), err: ", err)
