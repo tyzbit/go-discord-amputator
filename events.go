@@ -1,16 +1,17 @@
 package main
 
 import (
+	"time"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 // A messageEvent is created when we receive a message that
 // requires our attention
 type messageEvent struct {
-	gorm.Model
 	UUID             string `gorm:"primaryKey"`
+	CreatedAt        time.Time
 	AuthorId         string
 	AuthorUsername   string
 	MessageId        string
@@ -22,8 +23,8 @@ type messageEvent struct {
 
 // Every successful amputationEvent will come from a message.
 type amputationEvent struct {
-	gorm.Model
 	UUID           string `gorm:"primaryKey"`
+	CreatedAt      time.Time
 	AuthorId       string
 	AuthorUsername string
 	ChannelId      string
@@ -36,8 +37,8 @@ type amputationEvent struct {
 // This is the representation of request and response URLs from users or
 // the Amputator API.
 type urlInfo struct {
-	gorm.Model
 	UUID                string `gorm:"primaryKey"`
+	CreatedAt           time.Time
 	AmputationEventUUID string
 	Type                string
 	URL                 string
