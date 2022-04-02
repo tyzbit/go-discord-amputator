@@ -8,6 +8,8 @@ type botStats struct {
 	ServersWatched      int64 `pretty:"Servers Watched"`
 }
 
+// getGlobalStats calls the database to get global stats for the bot.
+// The output here is not appropriate to send to individual servers.
 func (bot *amputatorBot) getGlobalStats() botStats {
 	var MessagesActedOn, MessagesSent, AmputationEvents, ServersWatched int64
 	serverId := bot.dg.State.User.ID
@@ -28,6 +30,8 @@ func (bot *amputatorBot) getGlobalStats() botStats {
 	}
 }
 
+// getServerStats gets the stats for a particular server with ID serverId.
+// If you want global stats, use getGlobalStats()
 func (bot *amputatorBot) getServerStats(serverId string) botStats {
 	var MessagesActedOn, MessagesSent, AmputationEvents, ServersWatched int64
 	botId := bot.dg.State.User.ID

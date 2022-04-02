@@ -33,6 +33,8 @@ type amputationEvent struct {
 	ResponseURLs   []urlInfo `gorm:"foreignKey:AmputationEventUUID"`
 }
 
+// This is the representation of request and response URLs from users or
+// the Amputator API.
 type urlInfo struct {
 	gorm.Model
 	UUID                string `gorm:"primaryKey"`
@@ -42,9 +44,12 @@ type urlInfo struct {
 	DomainName          string
 }
 
+// createMessageEvent logs a given message event into the database and
+// returns the UUID for the message.
 func (bot *amputatorBot) createMessageEvent(c string, m *discordgo.Message) {
+	uuid := uuid.New().String()
 	bot.db.Create(&messageEvent{
-		UUID:           uuid.New().String(),
+		UUID:           uuid,
 		AuthorId:       m.Author.ID,
 		AuthorUsername: m.Author.Username,
 		MessageId:      m.ID,

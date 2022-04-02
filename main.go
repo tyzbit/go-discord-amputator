@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 	cfg "github.com/golobby/config/v3"
@@ -25,7 +24,6 @@ type schemaTypes []interface{}
 type amputatorBot struct {
 	db *gorm.DB
 	dg *discordgo.Session
-	id string
 }
 
 type amputatorBotConfig struct {
@@ -60,34 +58,6 @@ var (
 	statsCommand  string = "stats"
 	configCommand string = "config"
 )
-
-// registerOrUpdateGuild checks if a guild is already registered in the database. If not,
-// it creates it with sensibile defaults.
-func (bot *amputatorBot) registerOrUpdateGuild(s *discordgo.Session, g *discordgo.Guild) {
-	var registration serverRegistration
-	bot.db.Find(&registration, g.ID)
-	// TODO: There has to be a better way, but the guild name is blank in the s and g objects
-	guild, err := s.Guild(g.ID)
-	if err != nil {
-		log.Error("unable to look up guild by id: ", g.ID)
-	}
-	// The server registration does not exist, so we will create with defaults
-	if (registration == serverRegistration{}) {
-		log.Info("creating registration for new server: ", guild.Name, "(", g.ID, ")")
-		bot.db.Create(&serverRegistration{
-			DiscordId: g.ID,
-			Name:      guild.Name,
-			UpdatedAt: time.Now(),
-			Config:    defaultServerConfig,
-		})
-		return
-	}
-
-	err = bot.updateServersWatched(s)
-	if err != nil {
-		log.Error("unable to update servers watched: ", err)
-	}
-}
 
 func init() {
 	// Read from .env and override from the local environment
@@ -147,10 +117,12 @@ func main() {
 		return
 	}
 
+	// amputatorBot is an instance of this bot. It has many methods attached to
+	// it for controlling the bot. db is the database object, dg is the
+	// discordgo object.
 	bot := amputatorBot{
 		db: db,
 		dg: dg,
-		id: "",
 	}
 
 	// Set up DB if necessary
@@ -161,10 +133,14 @@ func main() {
 		}
 	}
 
+	// These handlers get called on Discord events
 	dg.AddHandler(bot.botReady)
 	dg.AddHandler(bot.guildCreate)
 	dg.AddHandler(bot.messageCreate)
 
+	// We have to be explicit about what we want to receive. In addition,
+	// some intents require additional permissions, which must be granted
+	// to the bot when it's added or after the fact by a guild admin.
 	discordIntents := discordgo.IntentsGuildMessages |
 		discordgo.IntentsDirectMessages
 	dg.Identify.Intents = discordIntents
@@ -180,9 +156,7 @@ func main() {
 	// Wait here until CTRL-C or other term signal is received.
 	log.Info("bot started")
 
-	// Set our bot ID locally
-	bot.id = dg.State.User.ID
-
+	// Listen for signals from the OS
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
@@ -213,6 +187,7 @@ func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Messag
 		return
 	}
 
+	// Check if a message has the command prefix (global variable)
 	if strings.HasPrefix(m.Content, commandPrefix) {
 		bot.createMessageEvent(statsCommand, m.Message)
 		verb := strings.Split(m.Content, " ")[1]

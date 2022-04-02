@@ -43,6 +43,7 @@ func convertFlatStructToSliceStringMap(i interface{}) []map[string]string {
 	return sortedValues
 }
 
+// getTagValue looks up the tag for a given field of the specified type.
 func getTagValue(i interface{}, field string, tag string) string {
 	r, ok := reflect.TypeOf(i).FieldByName(field)
 	if !ok {
@@ -53,14 +54,14 @@ func getTagValue(i interface{}, field string, tag string) string {
 
 // Returns a multiline string that pretty prints botStats. Ripped from
 // https://stackoverflow.com/a/18927729
-func botStatsToDiscordFields(b botStats) []*discordgo.MessageEmbedField {
+func structToDiscordFields(i any) []*discordgo.MessageEmbedField {
 	var fields ([]*discordgo.MessageEmbedField)
 
-	stringMapSlice := convertFlatStructToSliceStringMap(b)
+	stringMapSlice := convertFlatStructToSliceStringMap(i)
 
 	for _, stringMap := range stringMapSlice {
 		for key, value := range stringMap {
-			formattedKey := getTagValue(b, key, "pretty")
+			formattedKey := getTagValue(i, key, "pretty")
 			newField := discordgo.MessageEmbedField{
 				Name:  formattedKey,
 				Value: fmt.Sprintf("%v", value),
@@ -76,16 +77,22 @@ func botStatsToDiscordFields(b botStats) []*discordgo.MessageEmbedField {
 // message is the description of the passed MessageEmbed
 func (b amputatorBot) sendMessage(s *discordgo.Session, useEmbed bool, replyTo bool,
 	m *discordgo.Message, e *discordgo.MessageEmbed) {
+
+	var err error
 	switch useEmbed {
 	case true:
-		_, embedErr := s.ChannelMessageSendEmbed(m.ChannelID, e)
-		if embedErr != nil {
-			log.Warn(embedErr)
+		_, err = s.ChannelMessageSendEmbed(m.ChannelID, e)
+		if err != nil {
+			log.Warn(err)
 		}
 	case false:
-		_, messageErr := s.ChannelMessageSend(m.ChannelID, e.Description)
-		if messageErr != nil {
-			log.Warn(messageErr)
+		if !replyTo {
+			_, err = s.ChannelMessageSend(m.ChannelID, e.Description)
+		} else {
+			_, err = s.ChannelMessageSendReply(m.ChannelID, e.Description, m.Reference())
+		}
+		if err != nil {
+			log.Warn(err)
 		}
 	}
 }

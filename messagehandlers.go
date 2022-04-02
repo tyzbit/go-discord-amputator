@@ -16,20 +16,16 @@ import (
 func (bot *amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discordgo.MessageCreate) error {
 	directMessage := (m.GuildID == "")
 
-	sc := bot.getServerConfig(m.GuildID)
-
 	var stats botStats
-	var guildId string
 	statsLogMessage := ""
 	if !directMessage {
 		stats = bot.getServerStats(m.GuildID)
 		guild, err := s.Guild(m.GuildID)
 		if err != nil {
-			log.Error("unable to look up guild by id: ", m.GuildID)
+			return fmt.Errorf("unable to look up guild by id: %v", m.GuildID+", "+fmt.Sprintf("%v", err))
 		}
-		guildId = m.GuildID
 		statsLogMessage = "sending " + statsCommand + " response to " + m.Author.Username + "(" + m.Author.ID + ") in " +
-			guild.Name + "(" + guildId + ")"
+			guild.Name + "(" + guild.ID + ")"
 	} else {
 		stats = bot.getGlobalStats()
 		statsLogMessage = "sending global " + statsCommand + " response to " + m.Author.Username + "(" + m.Author.ID + ")"
@@ -50,19 +46,19 @@ out:
 	}
 
 	if !administrator {
-		log.Info("did not respond to ", m.Author.Username,
-			"(", m.Author.ID, ") ", statsCommand, " command because user is not an administrator")
-		return nil
+		log.Info()
+		return fmt.Errorf("did not respond to %v(%v) %v command because user is not an administrator",
+			m.Author.Username, m.Author.ID, statsCommand)
 	}
 
 	embed := &discordgo.MessageEmbed{
 		Title:  "Amputation Stats",
-		Fields: botStatsToDiscordFields(stats),
+		Fields: structToDiscordFields(stats),
 	}
 
 	// Respond to statsCommand command with the formatted stats embed
 	log.Info(statsLogMessage)
-	bot.sendMessage(s, true, sc.ReplyToOriginalMessage, m.Message, embed)
+	bot.sendMessage(s, true, false, m.Message, embed)
 
 	return nil
 }
@@ -77,8 +73,8 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 		return nil
 	}
 
-	xurlsRelaxed := xurls.Strict
-	urls := xurlsRelaxed.FindAllString(m.Content, -1)
+	xurlsStrict := xurls.Strict
+	urls := xurlsStrict.FindAllString(m.Content, -1)
 	if len(urls) == 0 {
 		log.Debug("found 0 URLs in message that matched amp regex: ", ampRegex)
 		return nil

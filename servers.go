@@ -18,14 +18,13 @@ type serverRegistration struct {
 }
 
 type serverConfig struct {
-	DiscordId              string `gorm:"primaryKey"`
-	Name                   string
-	AmputationEnabled      bool
-	ReplyToOriginalMessage bool
-	UseEmbed               bool
-	AllowStats             bool
-	GuessAndCheck          bool
-	MaxDepth               int
+	DiscordId              string `gorm:"primaryKey" pretty:"Server ID"`
+	Name                   string `pretty:"Server Name"`
+	AmputationEnabled      bool   `pretty:"Amputation Enabled"`
+	ReplyToOriginalMessage bool   `pretty:"Reply to original message"`
+	UseEmbed               bool   `pretty:"Use embed to reply"`
+	GuessAndCheck          bool   `pretty:"Guess at AMP URLs if they are difficult"`
+	MaxDepth               int    `pretty:"How many links deep to go to try to find the non-AMP link"`
 }
 
 var defaultServerConfig serverConfig = serverConfig{
@@ -34,12 +33,42 @@ var defaultServerConfig serverConfig = serverConfig{
 	AmputationEnabled:      true,
 	ReplyToOriginalMessage: false,
 	UseEmbed:               true,
-	AllowStats:             true,
 	GuessAndCheck:          true,
 	MaxDepth:               3,
 }
 
-// getServerConfig takes a guild ID and returns a serverConfig object for that server
+// registerOrUpdateGuild checks if a guild is already registered in the database. If not,
+// it creates it with sensibile defaults.
+func (bot *amputatorBot) registerOrUpdateGuild(s *discordgo.Session, g *discordgo.Guild) {
+	var registration serverRegistration
+	bot.db.Find(&registration, g.ID)
+
+	// TODO: There has to be a better way, but the guild name is blank in the s and g objects
+	guild, err := s.Guild(g.ID)
+	if err != nil {
+		log.Error("unable to look up guild by id: ", g.ID)
+	}
+
+	// The server registration does not exist, so we will create with defaults
+	if (registration == serverRegistration{}) {
+		log.Info("creating registration for new server: ", guild.Name, "(", g.ID, ")")
+		bot.db.Create(&serverRegistration{
+			DiscordId: g.ID,
+			Name:      guild.Name,
+			UpdatedAt: time.Now(),
+			Config:    defaultServerConfig,
+		})
+		return
+	}
+
+	err = bot.updateServersWatched(s)
+	if err != nil {
+		log.Error("unable to update servers watched: ", err)
+	}
+}
+
+// getServerConfig takes a guild ID and returns a serverConfig object for that server.
+// If the config isn't found, it returns a default config.
 func (bot *amputatorBot) getServerConfig(guildId string) serverConfig {
 	sc := serverConfig{}
 	bot.db.Where(&serverConfig{DiscordId: guildId}).Find(&sc)
@@ -49,6 +78,8 @@ func (bot *amputatorBot) getServerConfig(guildId string) serverConfig {
 	return sc
 }
 
+// setServerConfig sets a single config setting for the calling server. Syntax:
+// (commandPrefix) config [setting] [value]
 func (bot *amputatorBot) setServerConfig(s *discordgo.Session, m *discordgo.Message) error {
 	sc := bot.getServerConfig(m.GuildID)
 	if sc == defaultServerConfig {
@@ -61,8 +92,13 @@ func (bot *amputatorBot) setServerConfig(s *discordgo.Session, m *discordgo.Mess
 	}
 
 	command := strings.Split(m.Content, " ")
-	setting := command[2]
-	value := command[3]
+	var setting, value string
+	if len(command) == 4 {
+		setting = command[2]
+		value = command[3]
+	} else {
+		setting = "get"
+	}
 
 	errorEmbed := &discordgo.MessageEmbed{
 		Title:       "Unable to set " + value,
@@ -72,6 +108,13 @@ func (bot *amputatorBot) setServerConfig(s *discordgo.Session, m *discordgo.Mess
 	// TODO: make this not use raw fields
 	log.Debug(fmt.Sprintf("%#v", sc))
 	switch setting {
+	// "get" is the only command that does not alter the database.
+	case "get":
+		bot.sendMessage(s, true, false, m, &discordgo.MessageEmbed{
+			Title:  "Amputator Config",
+			Fields: structToDiscordFields(sc),
+		})
+		return nil
 	case "switch":
 		bot.db.Model(&serverConfig{}).Where(&serverConfig{DiscordId: guild.ID}).Update("amputation_enabled", value == "on")
 	case "replyto":
