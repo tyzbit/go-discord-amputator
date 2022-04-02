@@ -41,6 +41,9 @@ out:
 	for _, id := range config.adminIds {
 		if m.Author.ID == id {
 			administrator = true
+			// This prevents us from checking all IDs but is a fairly
+			// ineffectual optomization since config.adminIds
+			// will probably only have dozens of IDs at most.
 			break out
 		}
 	}
