@@ -49,7 +49,6 @@ out:
 	}
 
 	if !administrator {
-		log.Info()
 		return fmt.Errorf("did not respond to %v(%v) %v command because user is not an administrator",
 			m.Author.Username, m.Author.ID, statsCommand)
 	}

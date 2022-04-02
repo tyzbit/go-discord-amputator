@@ -211,12 +211,12 @@ func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Messag
 		case configCommand:
 			err = bot.setServerConfig(s, m.Message)
 		default:
-			log.Info("unknown command ", verb, " called")
+			log.Warn("unknown command ", verb, " called")
 			return
 		}
 
 		if err != nil {
-			log.Warn("unable to handle ", configCommand, " command: %w", err)
+			log.Warn("problem handling ", configCommand, " command: %w", err)
 		}
 
 		return
