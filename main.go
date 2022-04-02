@@ -22,8 +22,6 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-type schemaTypes []interface{}
-
 type amputatorBot struct {
 	db *gorm.DB
 	dg *discordgo.Session
@@ -41,17 +39,6 @@ type amputatorBotConfig struct {
 
 const (
 	ampRegex string = ".*[./-]amp[-./]?.*"
-)
-
-var (
-	config         amputatorBotConfig
-	allSchemaTypes = schemaTypes{
-		&serverRegistration{},
-		&serverConfig{},
-		&urlInfo{},
-		&amputationEvent{},
-		&messageEvent{},
-	}
 
 	sqlitePath string = "/var/go-discord-amputator/local.db"
 
@@ -60,13 +47,26 @@ var (
 	configCommand string = "config"
 )
 
+var (
+	config         amputatorBotConfig
+	allSchemaTypes = []interface{}{
+		&serverRegistration{},
+		&serverConfig{},
+		&urlInfo{},
+		&amputationEvent{},
+		&messageEvent{},
+	}
+)
+
 func init() {
 	// Read from .env and override from the local environment
 	dotEnvFeeder := feeder.DotEnv{Path: ".env"}
 	envFeeder := feeder.Env{}
+
 	_ = cfg.New().AddFeeder(dotEnvFeeder).AddStruct(&config).Feed()
 	_ = cfg.New().AddFeeder(envFeeder).AddStruct(&config).Feed()
 
+	// Info level by default
 	logLevelSelection := log.InfoLevel
 	switch {
 	case strings.EqualFold(config.logLevel, "trace"):
@@ -100,11 +100,9 @@ func main() {
 	if config.dbHost != "" && config.dbName != "" && config.dbPassword != "" && config.dbUser != "" {
 		dbType = "mysql"
 		dsn := fmt.Sprintf("%v:%v@tcp(%v)/%v?parseTime=True", config.dbUser, config.dbPassword, config.dbHost, config.dbName)
-
 		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logConfig})
 	} else {
 		dbType = "sqlite"
-
 		// Create the folder path if it doesn't exist
 		_, err = os.Stat(sqlitePath)
 		if errors.Is(err, fs.ErrNotExist) {
@@ -113,20 +111,19 @@ func main() {
 				log.Fatal("unable to make directory path ", dirPath, " err: ", err)
 			}
 		}
-
 		db, err = gorm.Open(sqlite.Open(sqlitePath), &gorm.Config{Logger: logConfig})
 	}
+
 	if err != nil {
 		log.Fatal("unable to connect to database (using "+dbType+"), err: ", err)
 	}
-	log.Info("using ", dbType)
+
+	log.Info("using ", dbType, " for the database")
 
 	// Create a new Discord session using the provided bot token.
 	dg, err := discordgo.New("Bot " + config.token)
 	if err != nil {
-		log.Error("error creating Discord session: ", err)
-		os.Exit(1)
-		return
+		log.Fatal("error creating Discord session: ", err)
 	}
 
 	// amputatorBot is an instance of this bot. It has many methods attached to
@@ -145,7 +142,8 @@ func main() {
 		}
 	}
 
-	// These handlers get called on Discord events
+	// These handlers get called whenever there's a corresponding
+	// Discord event.
 	dg.AddHandler(bot.botReady)
 	dg.AddHandler(bot.guildCreate)
 	dg.AddHandler(bot.messageCreate)
@@ -160,9 +158,7 @@ func main() {
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
 	if err != nil {
-		log.Error("error opening connection to discord: ", err)
-		os.Exit(1)
-		return
+		log.Fatal("error opening connection to discord: ", err)
 	}
 
 	// Wait here until CTRL-C or other term signal is received.
@@ -180,14 +176,20 @@ func main() {
 // botReady is called when the bot is considered ready to use the Discord session.
 func (bot *amputatorBot) botReady(s *discordgo.Session, r *discordgo.Ready) {
 	for _, g := range r.Guilds {
-		bot.registerOrUpdateGuild(s, g)
+		err := bot.registerOrUpdateGuild(s, g)
+		if err != nil {
+			log.Errorf("unable to register or update guild: %v", err)
+		}
 	}
 }
 
 // guildCreate is called whenever the bot joins a new guild. It is also lazily called upon initial
 // connection to Discord.
 func (bot *amputatorBot) guildCreate(s *discordgo.Session, gc *discordgo.GuildCreate) {
-	bot.registerOrUpdateGuild(s, gc.Guild)
+	err := bot.registerOrUpdateGuild(s, gc.Guild)
+	if err != nil {
+		log.Errorf("unable to register or update guild: %v", err)
+	}
 }
 
 // This function will be called (due to AddHandler above) every time a new
@@ -212,13 +214,11 @@ func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Messag
 			err = bot.setServerConfig(s, m.Message)
 		default:
 			log.Warn("unknown command ", verb, " called")
-			return
 		}
 
 		if err != nil {
 			log.Warn("problem handling ", configCommand, " command: %w", err)
 		}
-
 		return
 	}
 

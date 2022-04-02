@@ -8,6 +8,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 type serverRegistration struct {
@@ -43,32 +44,39 @@ var (
 
 // registerOrUpdateGuild checks if a guild is already registered in the database. If not,
 // it creates it with sensibile defaults.
-func (bot *amputatorBot) registerOrUpdateGuild(s *discordgo.Session, g *discordgo.Guild) {
+func (bot *amputatorBot) registerOrUpdateGuild(s *discordgo.Session, g *discordgo.Guild) error {
 	var registration serverRegistration
 	bot.db.Find(&registration, g.ID)
 
-	// TODO: There has to be a better way, but the guild name is blank in the s and g objects
+	// Do a lookup for the full guild object
 	guild, err := s.Guild(g.ID)
 	if err != nil {
-		log.Error("unable to look up guild by id: ", g.ID)
+		return fmt.Errorf("unable to look up guild by id: %v", g.ID)
 	}
 
 	// The server registration does not exist, so we will create with defaults
 	if (registration == serverRegistration{}) {
 		log.Info("creating registration for new server: ", guild.Name, "(", g.ID, ")")
-		bot.db.Create(&serverRegistration{
+		tx := bot.db.Create(&serverRegistration{
 			DiscordId: g.ID,
 			Name:      guild.Name,
 			UpdatedAt: time.Now(),
 			Config:    defaultServerConfig,
 		})
-		return
+
+		// We only expect one server to be updated at a time. Otherwise, return an error.
+		if tx.RowsAffected != 1 {
+			return fmt.Errorf("did not expect %v rows to be affected updating "+
+				"server registration for server: %v(%v)", fmt.Sprintf("%v", tx.RowsAffected), guild.Name, g.ID)
+		}
 	}
 
 	err = bot.updateServersWatched(s)
 	if err != nil {
-		log.Error("unable to update servers watched: ", err)
+		return fmt.Errorf("unable to update servers watched: %v", err)
 	}
+
+	return nil
 }
 
 // getServerConfig takes a guild ID and returns a serverConfig object for that server.
@@ -109,8 +117,7 @@ func (bot *amputatorBot) setServerConfig(s *discordgo.Session, m *discordgo.Mess
 		Description: "See " + amputatorRepoUrl + " for usage",
 	}
 
-	// TODO: make this not use raw fields
-	log.Debug(fmt.Sprintf("%#v", sc))
+	tx := &gorm.DB{}
 	switch setting {
 	// "get" is the only command that does not alter the database.
 	case "get":
@@ -120,23 +127,29 @@ func (bot *amputatorBot) setServerConfig(s *discordgo.Session, m *discordgo.Mess
 		})
 		return nil
 	case "switch":
-		bot.db.Model(&serverConfig{}).Where(&serverConfig{DiscordId: guild.ID}).Update("amputation_enabled", value == "on")
+		tx = bot.db.Model(&serverConfig{}).Where(&serverConfig{DiscordId: guild.ID}).Update("amputation_enabled", value == "on")
 	case "replyto":
-		bot.db.Model(&serverConfig{}).Where(&serverConfig{DiscordId: guild.ID}).Update("reply_to_original_message", value == "on")
+		tx = bot.db.Model(&serverConfig{}).Where(&serverConfig{DiscordId: guild.ID}).Update("reply_to_original_message", value == "on")
 	case "embed":
-		bot.db.Model(&serverConfig{}).Where(&serverConfig{DiscordId: guild.ID}).Update("use_embed", value == "on")
+		tx = bot.db.Model(&serverConfig{}).Where(&serverConfig{DiscordId: guild.ID}).Update("use_embed", value == "on")
 	case "guess":
-		bot.db.Model(&serverConfig{}).Where(&serverConfig{DiscordId: guild.ID}).Update("guess_and_check", value == "on")
+		tx = bot.db.Model(&serverConfig{}).Where(&serverConfig{DiscordId: guild.ID}).Update("guess_and_check", value == "on")
 	case "maxdepth":
 		maxDepth, err := strconv.Atoi(value)
 		if err != nil {
 			bot.sendMessage(s, sc.UseEmbed, sc.ReplyToOriginalMessage, m, errorEmbed)
+			return fmt.Errorf("unable to convert max depth from string to integer")
 		}
-		sc.MaxDepth = maxDepth
-		bot.db.Model(&serverConfig{}).Where(&serverConfig{DiscordId: guild.ID}).Updates(&sc)
+		tx = bot.db.Model(&serverConfig{}).Where(&serverConfig{DiscordId: guild.ID}).Update("max_depth", maxDepth)
 	default:
 		bot.sendMessage(s, sc.UseEmbed, sc.ReplyToOriginalMessage, m, errorEmbed)
 		return nil
+	}
+
+	// We only expect one server to be updated at a time. Otherwise, return an error.
+	if tx.RowsAffected != 1 {
+		return fmt.Errorf("did not expect %v rows to be affected updating "+
+			"server config for server: %v(%v)", fmt.Sprintf("%v", tx.RowsAffected), guild.Name, guild.ID)
 	}
 
 	bot.sendMessage(s, sc.UseEmbed, sc.ReplyToOriginalMessage, m, &discordgo.MessageEmbed{
@@ -160,9 +173,10 @@ func (bot *amputatorBot) updateServersWatched(s *discordgo.Session) error {
 		URL:  amputatorRepoUrl,
 	}
 
+	log.Debug("updating discord bot status")
 	err := s.UpdateStatusComplex(*usd)
 	if err != nil {
-		return fmt.Errorf("unable to update discord status: %w", err)
+		return fmt.Errorf("unable to update discord bot status: %w", err)
 	}
 
 	return nil

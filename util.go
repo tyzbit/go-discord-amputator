@@ -12,15 +12,19 @@ import (
 )
 
 // getFieldNamesByType takes an interface as an argument
-// and returns an array of the field names
+// and returns an array of the field names. Ripped from
+// https://stackoverflow.com/a/18927729
 func convertFlatStructToSliceStringMap(i interface{}) []map[string]string {
 	// Get reflections
 	t := reflect.TypeOf(i)
 	t2 := reflect.ValueOf(i)
 
-	values := map[string]string{}
 	// Keys is a list of keys of the values map. It's used for sorting later
-	keys := make([]string, 0, len(values))
+	keys := make([]string, 0, t.NumField())
+
+	// Values is an object that will hold an unsorted representation
+	// of the interface
+	values := map[string]string{}
 
 	// Convert the struct to map[string]string
 	for i := 0; i < t.NumField(); i++ {
@@ -42,6 +46,7 @@ func convertFlatStructToSliceStringMap(i interface{}) []map[string]string {
 }
 
 // getTagValue looks up the tag for a given field of the specified type.
+// Be advised, if the tag can't be found, it returns an empty string.
 func getTagValue(i interface{}, field string, tag string) string {
 	r, ok := reflect.TypeOf(i).FieldByName(field)
 	if !ok {
@@ -50,8 +55,7 @@ func getTagValue(i interface{}, field string, tag string) string {
 	return r.Tag.Get(tag)
 }
 
-// Returns a multiline string that pretty prints botStats. Ripped from
-// https://stackoverflow.com/a/18927729
+// Returns a multiline string that pretty prints botStats.
 func structToPrettyDiscordFields(i any) []*discordgo.MessageEmbedField {
 	var fields ([]*discordgo.MessageEmbedField)
 
@@ -96,11 +100,11 @@ func (b amputatorBot) sendMessage(s *discordgo.Session, useEmbed bool, replyTo b
 }
 
 // getDomainName receives a URL and returns the FQDN
-func getDomainName(s string) string {
+func getDomainName(s string) (string, error) {
 	u, err := url.Parse(s)
 	if err != nil {
-		log.Error("unable to determine domain name for url: ", s)
+		return "", fmt.Errorf("unable to determine domain name for url: %v", s)
 	}
 	parts := strings.Split(u.Hostname(), ".")
-	return parts[len(parts)-2] + "." + parts[len(parts)-1]
+	return parts[len(parts)-2] + "." + parts[len(parts)-1], nil
 }

@@ -45,8 +45,7 @@ type urlInfo struct {
 	DomainName          string
 }
 
-// createMessageEvent logs a given message event into the database and
-// returns the UUID for the message.
+// createMessageEvent logs a given message event into the database.
 func (bot *amputatorBot) createMessageEvent(c string, m *discordgo.Message) {
 	uuid := uuid.New().String()
 	bot.db.Create(&messageEvent{
