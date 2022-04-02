@@ -22,12 +22,12 @@ Otherwise, it will save stats to a local sqlite database at `/var/go-discord-amp
 
 Configure the bot with `!amp config [setting] [value]`. The settings are below:
 
-| Setting | Description | Default |
+| Setting | Default | Description |
 |:-|:-|-:|
-| switch | Enable the bot: `on`, disable the bot: `off` | `on` |
-| replyto | Reply to the original message for context, `on` or `off` | `off` |
-| embed | Whether to use an embed message or just reply with links (Discord will then auto preview them), `on` or `off` | `on` |
-| guess | Whether to guess if the URL is difficult to amputate, `on` or `off` | `on` | 
-| maxdepth | The maximum number of links deep to go to find the canonical URL,  any number | `3` |
+| switch | `on` | Enable the bot: `on`, disable the bot: `off` |
+| replyto | `off` | Reply to the original message for context, `on` or `off` |
+| embed | `on` | Whether to use an embed message or just reply with links (Discord will then auto preview them), `on` or `off` |
+| guess | `on` | Whether to guess if the URL is difficult to amputate, `on` or `off` |
+| maxdepth | `3` | The maximum number of links deep to go to find the canonical URL,  any number |
 
 You can also use `!amp stats` to get amputation stats for your server.
