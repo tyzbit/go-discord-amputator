@@ -27,17 +27,13 @@ type amputatorBot struct {
 }
 
 type amputatorBotConfig struct {
-	adminIds              []string `env:"ADMINISTRATOR_IDS"`
-	automaticallyAmputate bool     `env:"AUTOMATICALLY_AMPUTATE"`
-	botId                 int      `env:"BOT_ID"`
-	dbHost                string   `env:"DB_HOST"`
-	dbName                string   `env:"DB_NAME"`
-	dbPassword            string   `env:"DB_PASSWORD"`
-	dbUser                string   `env:"DB_USER"`
-	guessAndCheck         string   `env:"GUESS_AND_CHECK"`
-	logLevel              string   `env:"LOG_LEVEL"`
-	maxDepth              string   `env:"MAX_DEPTH"`
-	token                 string   `env:"TOKEN"`
+	adminIds   []string `env:"ADMINISTRATOR_IDS"`
+	dbHost     string   `env:"DB_HOST"`
+	dbName     string   `env:"DB_NAME"`
+	dbPassword string   `env:"DB_PASSWORD"`
+	dbUser     string   `env:"DB_USER"`
+	logLevel   string   `env:"LOG_LEVEL"`
+	token      string   `env:"TOKEN"`
 }
 
 const (
