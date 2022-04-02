@@ -201,25 +201,25 @@ func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Messag
 
 	// Check if a message has the command prefix (global variable)
 	if strings.HasPrefix(m.Content, commandPrefix) {
+		var err error
 		bot.createMessageEvent(statsCommand, m.Message)
 		verb := strings.Split(m.Content, " ")[1]
 		log.Info(verb+" called by ", m.Author.Username, "(", m.Author.ID, ")")
 		switch verb {
 		case statsCommand:
-			err := bot.handleMessageWithStats(s, m)
-			if err != nil {
-				log.Warn("unable to handle ", statsCommand, " command: %w", err)
-			}
-			return
+			err = bot.handleMessageWithStats(s, m)
 		case configCommand:
-			err := bot.setServerConfig(s, m.Message)
-			if err != nil {
-				log.Warn("unable to handle ", configCommand, " command: %w", err)
-			}
+			err = bot.setServerConfig(s, m.Message)
 		default:
 			log.Info("unknown command ", verb, " called")
 			return
 		}
+
+		if err != nil {
+			log.Warn("unable to handle ", configCommand, " command: %w", err)
+		}
+
+		return
 	}
 
 	// Check if the message has something that looks like an AMP URL according
