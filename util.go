@@ -11,8 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type interfaceMap map[string]interface{}
-
 // getFieldNamesByType takes an interface as an argument
 // and returns an array of the field names
 func convertFlatStructToSliceStringMap(i interface{}) []map[string]string {
@@ -32,9 +30,9 @@ func convertFlatStructToSliceStringMap(i interface{}) []map[string]string {
 		keys = append(keys, k)
 	}
 
-	//
 	sort.Strings(keys)
 
+	// Now we will sort the values returned above into a sortedValues
 	sortedValues := make([]map[string]string, 0, t.NumField())
 	for _, k := range keys {
 		sortedValues = append(sortedValues, map[string]string{k: values[k]})
