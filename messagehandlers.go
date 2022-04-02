@@ -17,18 +17,18 @@ func (bot *amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discord
 	directMessage := (m.GuildID == "")
 
 	var stats botStats
-	statsLogMessage := ""
+	logMessage := ""
 	if !directMessage {
 		stats = bot.getServerStats(m.GuildID)
 		guild, err := s.Guild(m.GuildID)
 		if err != nil {
 			return fmt.Errorf("unable to look up guild by id: %v", m.GuildID+", "+fmt.Sprintf("%v", err))
 		}
-		statsLogMessage = "sending " + statsCommand + " response to " + m.Author.Username + "(" + m.Author.ID + ") in " +
+		logMessage = "sending " + statsCommand + " response to " + m.Author.Username + "(" + m.Author.ID + ") in " +
 			guild.Name + "(" + guild.ID + ")"
 	} else {
 		stats = bot.getGlobalStats()
-		statsLogMessage = "sending global " + statsCommand + " response to " + m.Author.Username + "(" + m.Author.ID + ")"
+		logMessage = "sending global " + statsCommand + " response to " + m.Author.Username + "(" + m.Author.ID + ")"
 	}
 
 	// write a new statsMessageEvent to the DB
@@ -52,7 +52,7 @@ out:
 	}
 
 	if !administrator {
-		return fmt.Errorf("did not respond to %v(%v) %v command because user is not an administrator",
+		return fmt.Errorf("did not respond to %v(%v), command %v because user is not an administrator",
 			m.Author.Username, m.Author.ID, statsCommand)
 	}
 
@@ -62,7 +62,7 @@ out:
 	}
 
 	// Respond to statsCommand command with the formatted stats embed
-	log.Info(statsLogMessage)
+	log.Info(logMessage)
 	bot.sendMessage(s, true, false, m.Message, embed)
 
 	return nil
@@ -72,8 +72,8 @@ out:
 // calls go-amputator with a []string of URLs parsed from the message.
 // It then sends an embed with the resulting amputated URLs.
 func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discordgo.MessageCreate) error {
-	sc := bot.getServerConfig(m.GuildID)
-	if !sc.AmputationEnabled {
+	serverConfig := bot.getServerConfig(m.GuildID)
+	if !serverConfig.AmputationEnabled {
 		log.Info("URLs were not amputated because automatic amputation is not enabled")
 		return nil
 	}
@@ -111,12 +111,12 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 	// initialize and call the amputator API
 	amputator := goamputate.AmputatorBot{}
 	amputatedLinks, err := amputator.Amputate(urls, map[string]string{
-		"gac": fmt.Sprintf("%v", sc.GuessAndCheck),
-		"md":  fmt.Sprintf("%v", sc.MaxDepth),
+		"gac": fmt.Sprintf("%v", serverConfig.GuessAndCheck),
+		"md":  fmt.Sprintf("%v", serverConfig.MaxDepth),
 	})
 
 	if err != nil || len(amputatedLinks) == 0 {
-		bot.sendMessage(s, sc.UseEmbed, sc.ReplyToOriginalMessage,
+		bot.sendMessage(s, serverConfig.UseEmbed, serverConfig.ReplyToOriginalMessage,
 			m.Message, &discordgo.MessageEmbed{
 				Title:       "Problem Amputating",
 				Description: "Sorry, I couldn't amputate that link.",
@@ -162,7 +162,7 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 	log.Debug("sending amputate message response in ",
 		guild.Name, "(", m.GuildID, "), calling user: ",
 		m.Author.Username, "(", m.Author.ID, ")")
-	bot.sendMessage(s, sc.UseEmbed, sc.ReplyToOriginalMessage, m.Message, embed)
+	bot.sendMessage(s, serverConfig.UseEmbed, serverConfig.ReplyToOriginalMessage, m.Message, embed)
 
 	// Create a call to Amputator API event
 	tx := bot.db.Create(&amputationEvent{

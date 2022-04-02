@@ -165,16 +165,16 @@ func (bot *amputatorBot) setServerConfig(s *discordgo.Session, m *discordgo.Mess
 func (bot *amputatorBot) updateServersWatched(s *discordgo.Session) error {
 	stats := bot.getGlobalStats()
 
-	usd := &discordgo.UpdateStatusData{Status: "online"}
-	usd.Activities = make([]*discordgo.Activity, 1)
-	usd.Activities[0] = &discordgo.Activity{
+	updateStatusData := &discordgo.UpdateStatusData{Status: "online"}
+	updateStatusData.Activities = make([]*discordgo.Activity, 1)
+	updateStatusData.Activities[0] = &discordgo.Activity{
 		Name: fmt.Sprintf("%v servers", stats.ServersWatched),
 		Type: discordgo.ActivityTypeWatching,
 		URL:  amputatorRepoUrl,
 	}
 
 	log.Debug("updating discord bot status")
-	err := s.UpdateStatusComplex(*usd)
+	err := s.UpdateStatusComplex(*updateStatusData)
 	if err != nil {
 		return fmt.Errorf("unable to update discord bot status: %w", err)
 	}

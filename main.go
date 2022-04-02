@@ -205,7 +205,14 @@ func (bot *amputatorBot) messageCreate(s *discordgo.Session, m *discordgo.Messag
 	if strings.HasPrefix(m.Content, commandPrefix) {
 		var err error
 		bot.createMessageEvent(statsCommand, m.Message)
-		verb := strings.Split(m.Content, " ")[1]
+
+		words := strings.Split(m.Content, " ")
+		if len(words) < 2 {
+			log.Warn("not enough words for ", statsCommand, " command")
+			return
+		}
+
+		verb := words[1]
 		log.Info(verb+" called by ", m.Author.Username, "(", m.Author.ID, ")")
 		switch verb {
 		case statsCommand:

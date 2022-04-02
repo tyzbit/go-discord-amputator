@@ -17,7 +17,7 @@ import (
 func convertFlatStructToSliceStringMap(i interface{}) []map[string]string {
 	// Get reflections
 	t := reflect.TypeOf(i)
-	t2 := reflect.ValueOf(i)
+	tv := reflect.ValueOf(i)
 
 	// Keys is a list of keys of the values map. It's used for sorting later
 	keys := make([]string, 0, t.NumField())
@@ -29,7 +29,7 @@ func convertFlatStructToSliceStringMap(i interface{}) []map[string]string {
 	// Convert the struct to map[string]string
 	for i := 0; i < t.NumField(); i++ {
 		k := t.Field(i).Name
-		v := t2.Field(i)
+		v := tv.Field(i)
 		values[k] = fmt.Sprintf("%v", v)
 		keys = append(keys, k)
 	}
@@ -101,10 +101,10 @@ func (b amputatorBot) sendMessage(s *discordgo.Session, useEmbed bool, replyTo b
 
 // getDomainName receives a URL and returns the FQDN
 func getDomainName(s string) (string, error) {
-	u, err := url.Parse(s)
+	url, err := url.Parse(s)
 	if err != nil {
 		return "", fmt.Errorf("unable to determine domain name for url: %v", s)
 	}
-	parts := strings.Split(u.Hostname(), ".")
+	parts := strings.Split(url.Hostname(), ".")
 	return parts[len(parts)-2] + "." + parts[len(parts)-1], nil
 }
