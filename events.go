@@ -23,7 +23,7 @@ type messageEvent struct {
 // Every successful amputationEvent will come from a message.
 type amputationEvent struct {
 	gorm.Model
-	UUID           string `gorm:"primaryKey"` // TODO: why does this need type declared but other UUIDs don't?
+	UUID           string `gorm:"primaryKey"`
 	AuthorId       string
 	AuthorUsername string
 	ChannelId      string
