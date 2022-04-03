@@ -1,114 +1,54 @@
 package main
 
-import (
-	"fmt"
-
-	"github.com/bwmarrin/discordgo"
-	log "github.com/sirupsen/logrus"
-)
-
-// updateMessagesSeen updates the messages seen value in both the local bot
-// stats and in the database
-func (bot *amputatorBot) setMessagesSeen(i int) {
-	bot.infoUpdates.Lock()
-	bot.info.MessagesSeen = i
-	bot.infoUpdates.Unlock()
-
-	field := getBotInfoTagValue("db", "MessagesSeen")
-	if field == "" {
-		log.Error("db tag was blank for MessagesSeen")
-		return
-	}
-	bot.dbUpdates <- field + " = " + fmt.Sprintf("%v", i)
+type botStats struct {
+	MessagesActedOn     int64 `pretty:"Messages Seen"`
+	MessagesSent        int64 `pretty:"Messages Sent"`
+	CallsToAmputatorAPI int64 `pretty:"Calls to Amputator API"`
+	URLsAmputated       int64 `pretty:"URLs Amputated"`
+	ServersWatched      int64 `pretty:"Servers Watched"`
 }
 
-// updateMessagesActedOn updates the messages acted on value in both the
-// local bot stats and in the database
-func (bot *amputatorBot) setMessagesActedOn(i int) {
-	bot.infoUpdates.Lock()
-	bot.info.MessagesActedOn = i
-	bot.infoUpdates.Unlock()
+// getGlobalStats calls the database to get global stats for the bot.
+// The output here is not appropriate to send to individual servers, except
+// for ServersWatched.
+func (bot *amputatorBot) getGlobalStats() botStats {
+	var MessagesActedOn, MessagesSent, CallsToAmputatorAPI, ServersWatched int64
+	serverId := bot.dg.State.User.ID
+	amputationRows := []amputationEvent{}
 
-	field := getBotInfoTagValue("db", "MessagesActedOn")
-	if field == "" {
-		log.Error("db tag was blank for MessagesActedOn")
-		return
+	bot.db.Model(&messageEvent{}).Count(&MessagesActedOn)
+	bot.db.Model(&messageEvent{}).Where(&messageEvent{AuthorId: serverId}).Count(&MessagesSent)
+	bot.db.Model(&amputationEvent{}).Count(&CallsToAmputatorAPI)
+	bot.db.Model(&amputationEvent{}).Scan(&amputationRows)
+	bot.db.Model(&serverRegistration{}).Where(&serverRegistration{}).Count(&ServersWatched)
+
+	return botStats{
+		MessagesActedOn:     MessagesActedOn,
+		MessagesSent:        MessagesSent,
+		CallsToAmputatorAPI: CallsToAmputatorAPI,
+		URLsAmputated:       int64(len(amputationRows)),
+		ServersWatched:      ServersWatched,
 	}
-	bot.dbUpdates <- field + " = " + fmt.Sprintf("%v", i)
 }
 
-// updateMessagesSent updates the messages sent value in both the
-// local bot stats and in the database
-func (bot *amputatorBot) setMessagesSent(i int) {
-	bot.infoUpdates.Lock()
-	bot.info.MessagesSent = i
-	bot.infoUpdates.Unlock()
+// getServerStats gets the stats for a particular server with ID serverId.
+// If you want global stats, use getGlobalStats()
+func (bot *amputatorBot) getServerStats(serverId string) botStats {
+	var MessagesActedOn, MessagesSent, AmputationEvents, ServersWatched int64
+	botId := bot.dg.State.User.ID
+	amputationRows := []amputationEvent{}
 
-	field := getBotInfoTagValue("db", "MessagesSent")
-	if field == "" {
-		log.Error("db tag was blank for MessagesSent")
-		return
+	bot.db.Model(&messageEvent{}).Where(&messageEvent{ServerId: serverId}).Count(&MessagesActedOn)
+	bot.db.Model(&messageEvent{}).Where(&messageEvent{AuthorId: botId, ServerId: serverId}).Count(&MessagesSent)
+	bot.db.Model(&amputationEvent{}).Where(&amputationEvent{ServerId: serverId}).Count(&AmputationEvents)
+	bot.db.Model(&amputationEvent{}).Where(&amputationEvent{ServerId: serverId}).Scan(&amputationRows)
+	bot.db.Model(&serverRegistration{}).Where(&serverRegistration{}).Count(&ServersWatched)
+
+	return botStats{
+		MessagesActedOn,
+		MessagesSent,
+		AmputationEvents,
+		int64(len(amputationRows)),
+		ServersWatched,
 	}
-	bot.dbUpdates <- field + " = " + fmt.Sprintf("%v", i)
-}
-
-// CallsToAmputatorAPI updates the calls to Amputator API value
-// in both the local bot stats and in the database
-func (bot *amputatorBot) setCallsToAmputatorApi(i int) {
-	bot.infoUpdates.Lock()
-	bot.info.CallsToAmputatorAPI = i
-	bot.infoUpdates.Unlock()
-
-	field := getBotInfoTagValue("db", "CallsToAmputatorAPI")
-	if field == "" {
-		log.Error("db tag was blank for CallsToAmputatorAPI")
-		return
-	}
-	bot.dbUpdates <- field + " = " + fmt.Sprintf("%v", i)
-}
-
-// URLsAmputated updates the URLs amputated value
-// in both the local bot stats and in the database
-func (bot *amputatorBot) setUrlsAmputated(i int) {
-	bot.infoUpdates.Lock()
-	bot.info.URLsAmputated = i
-	bot.infoUpdates.Unlock()
-
-	field := getBotInfoTagValue("db", "URLsAmputated")
-	if field == "" {
-		log.Error("db tag was blank for URLsAmputated")
-		return
-	}
-	bot.dbUpdates <- field + " = " + fmt.Sprintf("%v", i)
-}
-
-// updateServersWatched updates the servers watched value
-// in both the local bot stats and in the database
-func (bot *amputatorBot) updateServersWatched(s *discordgo.Session, i int) {
-	log.Info("watching ", i, " servers")
-
-	usd := &discordgo.UpdateStatusData{Status: "online"}
-	usd.Activities = make([]*discordgo.Activity, 1)
-	usd.Activities[0] = &discordgo.Activity{
-		Name: fmt.Sprintf("%v servers", i),
-		Type: discordgo.ActivityTypeWatching,
-		URL:  "https://github.com/tyzbit/go-discord-amputator",
-	}
-
-	err := s.UpdateStatusComplex(*usd)
-	if err != nil {
-		log.Error("failed to set status: ", err)
-	}
-
-	bot.infoUpdates.Lock()
-	bot.info.ServersWatched = i
-	bot.infoUpdates.Unlock()
-
-	field := getBotInfoTagValue("db", "ServersWatched")
-	if field == "" {
-		log.Error("db tag was blank for ServersWatched")
-		return
-	}
-
-	bot.dbUpdates <- field + " = " + fmt.Sprintf("%v", i)
 }

@@ -3,6 +3,7 @@ WORKDIR /
 COPY . ./
 
 RUN apk add \
+    build-base \
     git \
 &&  go build -ldflags="-s -w"
 
