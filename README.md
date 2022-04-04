@@ -31,3 +31,9 @@ Configure the bot with `!amp config [setting] [value]`. The settings are below:
 | maxdepth | `3` | The maximum number of links deep to go to find the canonical URL,  any number |
 
 You can also use `!amp stats` to get amputation stats for your server.
+
+## Development
+
+Create a `.env` file with your configuration, at the bare minimum you need
+a Discord token for `TOKEN`. You can either `docker compose up --build` to run 
+with a mysql database, or just `go run main.go` to run with a sqlite database.

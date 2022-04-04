@@ -1,3 +1,4 @@
 .env
 vendor/
 go-discord-amputator
+local.db

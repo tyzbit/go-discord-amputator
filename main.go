@@ -31,9 +31,9 @@ var (
 		&bot.AmputationEvent{},
 		&bot.MessageEvent{},
 	}
-)
 
-const sqlitePath string = "/var/go-discord-amputator/local.db"
+	sqlitePath string = "/var/go-discord-amputator/local.db"
+)
 
 func init() {
 	// Read from .env and override from the local environment
@@ -85,7 +85,8 @@ func main() {
 		if errors.Is(err, fs.ErrNotExist) {
 			dirPath := filepath.Dir(sqlitePath)
 			if err := os.MkdirAll(dirPath, 0660); err != nil {
-				log.Fatal("unable to make directory path ", dirPath, " err: ", err)
+				log.Error("unable to make directory path ", dirPath, " err: ", err)
+				sqlitePath = "./local.db"
 			}
 		}
 		db, err = gorm.Open(sqlite.Open(sqlitePath), &gorm.Config{Logger: logConfig})
