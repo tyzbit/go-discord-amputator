@@ -23,7 +23,7 @@ Otherwise, it will save stats to a local sqlite database at `/var/go-discord-amp
 Configure the bot with `!amp config [setting] [value]`. The settings are below:
 
 | Setting | Default | Description |
-|:-|:-|-:|
+|:-|:-|:-|
 | switch | `on` | Enable the bot: `on`, disable the bot: `off` |
 | replyto | `off` | Reply to the original message for context, `on` or `off` |
 | embed | `on` | Whether to use an embed message or just reply with links (Discord will then auto preview them), `on` or `off` |
