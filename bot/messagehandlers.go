@@ -1,4 +1,4 @@
-package main
+package bot
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 
 // handleMessageWithStats takes a discord session and a user ID and sends a
 // message to the user with stats about the bot.
-func (bot *amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discordgo.MessageCreate) error {
+func (bot *AmputatorBot) handleMessageWithStats(s *discordgo.Session, m *discordgo.MessageCreate) error {
 	directMessage := (m.GuildID == "")
 
 	var stats botStats
@@ -39,13 +39,13 @@ func (bot *amputatorBot) handleMessageWithStats(s *discordgo.Session, m *discord
 	administrator := false
 
 out:
-	for _, id := range config.adminIds {
+	for _, id := range bot.Config.AdminIds {
 		if m.Author.ID == id {
 			administrator = true
 
 			// This prevents us from checking all IDs now that
 			// we found a match but is a fairly ineffectual
-			// optimization since config.adminIds will probably
+			// optimization since config.AdminIds will probably
 			// only have dozens of IDs at most.
 			break out
 		}
@@ -71,9 +71,9 @@ out:
 // handleMessageWithAmpUrls takes a Discord session and a message string and
 // calls go-amputator with a []string of URLs parsed from the message.
 // It then sends an embed with the resulting amputated URLs.
-func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discordgo.MessageCreate) error {
-	serverConfig := bot.getServerConfig(m.GuildID)
-	if !serverConfig.AmputationEnabled {
+func (bot *AmputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discordgo.MessageCreate) error {
+	ServerConfig := bot.getServerConfig(m.GuildID)
+	if !ServerConfig.AmputationEnabled {
 		log.Info("URLs were not amputated because automatic amputation is not enabled")
 		return nil
 	}
@@ -86,12 +86,12 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 
 	log.Debug("URLs parsed from message: ", strings.Join(urls, ", "))
 
-	// This UUID will be used to tie together the amputationEvent,
+	// This UUID will be used to tie together the AmputationEvent,
 	// the amputationRequestUrls and the amputationResponseUrls.
 	ampEventUUID := uuid.New().String()
 
 	// Create the list of URLs requested for this call to the Amputator API
-	var ampRequestUrls []urlInfo
+	var ampRequestUrls []URLInfo
 	for _, url := range urls {
 		domainName, err := getDomainName(url)
 		if err != nil {
@@ -99,7 +99,7 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 			domainName = ""
 		}
 
-		ampRequestUrls = append(ampRequestUrls, urlInfo{
+		ampRequestUrls = append(ampRequestUrls, URLInfo{
 			UUID:                uuid.New().String(),
 			AmputationEventUUID: ampEventUUID,
 			Type:                "request",
@@ -111,12 +111,12 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 	// initialize and call the amputator API
 	amputator := goamputate.AmputatorBot{}
 	amputatedLinks, err := amputator.Amputate(urls, map[string]string{
-		"gac": fmt.Sprintf("%v", serverConfig.GuessAndCheck),
-		"md":  fmt.Sprintf("%v", serverConfig.MaxDepth),
+		"gac": fmt.Sprintf("%v", ServerConfig.GuessAndCheck),
+		"md":  fmt.Sprintf("%v", ServerConfig.MaxDepth),
 	})
 
 	if err != nil || len(amputatedLinks) == 0 {
-		bot.sendMessage(s, serverConfig.UseEmbed, serverConfig.ReplyToOriginalMessage,
+		bot.sendMessage(s, ServerConfig.UseEmbed, ServerConfig.ReplyToOriginalMessage,
 			m.Message, &discordgo.MessageEmbed{
 				Title:       "Problem Amputating",
 				Description: "Sorry, I couldn't amputate that link.",
@@ -125,7 +125,7 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 	}
 
 	// Create the list of URLs we got back for this call to the Amputator API
-	var ampResponseUrls []urlInfo
+	var ampResponseUrls []URLInfo
 	for _, url := range amputatedLinks {
 		domainName, err := getDomainName(url)
 		if err != nil {
@@ -133,7 +133,7 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 			domainName = ""
 		}
 
-		ampResponseUrls = append(ampResponseUrls, urlInfo{
+		ampResponseUrls = append(ampResponseUrls, URLInfo{
 			UUID:                uuid.New().String(),
 			Type:                "response",
 			DomainName:          domainName,
@@ -162,10 +162,10 @@ func (bot *amputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 	log.Debug("sending amputate message response in ",
 		guild.Name, "(", m.GuildID, "), calling user: ",
 		m.Author.Username, "(", m.Author.ID, ")")
-	bot.sendMessage(s, serverConfig.UseEmbed, serverConfig.ReplyToOriginalMessage, m.Message, embed)
+	bot.sendMessage(s, ServerConfig.UseEmbed, ServerConfig.ReplyToOriginalMessage, m.Message, embed)
 
 	// Create a call to Amputator API event
-	tx := bot.db.Create(&amputationEvent{
+	tx := bot.DB.Create(&AmputationEvent{
 		UUID:           ampEventUUID,
 		AuthorId:       m.Author.ID,
 		AuthorUsername: m.Author.Username,

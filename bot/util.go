@@ -1,4 +1,4 @@
-package main
+package bot
 
 import (
 	"fmt"
@@ -77,7 +77,7 @@ func structToPrettyDiscordFields(i any) []*discordgo.MessageEmbedField {
 
 // sendMessage sends a MessageEmbed or a regular message. The content of the regular
 // message is the description of the passed MessageEmbed
-func (b amputatorBot) sendMessage(s *discordgo.Session, useEmbed bool, replyTo bool,
+func (b AmputatorBot) sendMessage(s *discordgo.Session, useEmbed bool, replyTo bool,
 	m *discordgo.Message, e *discordgo.MessageEmbed) {
 
 	var err error

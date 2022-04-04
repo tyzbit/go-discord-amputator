@@ -1,4 +1,4 @@
-package main
+package bot
 
 import (
 	"time"
@@ -7,9 +7,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// A messageEvent is created when we receive a message that
+// A MessageEvent is created when we receive a message that
 // requires our attention
-type messageEvent struct {
+type MessageEvent struct {
 	UUID             string `gorm:"primaryKey"`
 	CreatedAt        time.Time
 	AuthorId         string
@@ -18,11 +18,11 @@ type messageEvent struct {
 	Command          string
 	ChannelId        string
 	ServerId         string
-	AmputationEvents []amputationEvent `gorm:"foreignKey:UUID"`
+	AmputationEvents []AmputationEvent `gorm:"foreignKey:UUID"`
 }
 
-// Every successful amputationEvent will come from a message.
-type amputationEvent struct {
+// Every successful AmputationEvent will come from a message.
+type AmputationEvent struct {
 	UUID           string `gorm:"primaryKey"`
 	CreatedAt      time.Time
 	AuthorId       string
@@ -30,13 +30,13 @@ type amputationEvent struct {
 	ChannelId      string
 	MessageId      string
 	ServerId       string
-	RequestURLs    []urlInfo `gorm:"foreignKey:AmputationEventUUID"`
-	ResponseURLs   []urlInfo `gorm:"foreignKey:AmputationEventUUID"`
+	RequestURLs    []URLInfo `gorm:"foreignKey:AmputationEventUUID"`
+	ResponseURLs   []URLInfo `gorm:"foreignKey:AmputationEventUUID"`
 }
 
 // This is the representation of request and response URLs from users or
 // the Amputator API.
-type urlInfo struct {
+type URLInfo struct {
 	UUID                string `gorm:"primaryKey"`
 	CreatedAt           time.Time
 	AmputationEventUUID string
@@ -46,9 +46,9 @@ type urlInfo struct {
 }
 
 // createMessageEvent logs a given message event into the database.
-func (bot *amputatorBot) createMessageEvent(c string, m *discordgo.Message) {
+func (bot *AmputatorBot) createMessageEvent(c string, m *discordgo.Message) {
 	uuid := uuid.New().String()
-	bot.db.Create(&messageEvent{
+	bot.DB.Create(&MessageEvent{
 		UUID:           uuid,
 		AuthorId:       m.Author.ID,
 		AuthorUsername: m.Author.Username,
