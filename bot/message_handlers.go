@@ -27,34 +27,33 @@ func (bot *AmputatorBot) handleMessageWithStats(s *discordgo.Session, m *discord
 		logMessage = "sending " + statsCommand + " response to " + m.Author.Username + "(" + m.Author.ID + ") in " +
 			guild.Name + "(" + guild.ID + ")"
 	} else {
+		// We can be sure now the request was a direct message.
+		// Deny by default.
+		administrator := false
+
+	out:
+		for _, id := range bot.Config.AdminIds {
+			if m.Author.ID == id {
+				administrator = true
+
+				// This prevents us from checking all IDs now that
+				// we found a match but is a fairly ineffectual
+				// optimization since config.AdminIds will probably
+				// only have dozens of IDs at most.
+				break out
+			}
+		}
+
+		if !administrator {
+			return fmt.Errorf("did not respond to %v(%v), command %v because user is not an administrator",
+				m.Author.Username, m.Author.ID, statsCommand)
+		}
 		stats = bot.getGlobalStats()
 		logMessage = "sending global " + statsCommand + " response to " + m.Author.Username + "(" + m.Author.ID + ")"
 	}
 
 	// write a new statsMessageEvent to the DB
 	bot.createMessageEvent(statsCommand, m.Message)
-
-	// We can be sure now the request was a direct message.
-	// Deny by default.
-	administrator := false
-
-out:
-	for _, id := range bot.Config.AdminIds {
-		if m.Author.ID == id {
-			administrator = true
-
-			// This prevents us from checking all IDs now that
-			// we found a match but is a fairly ineffectual
-			// optimization since config.AdminIds will probably
-			// only have dozens of IDs at most.
-			break out
-		}
-	}
-
-	if !administrator {
-		return fmt.Errorf("did not respond to %v(%v), command %v because user is not an administrator",
-			m.Author.Username, m.Author.ID, statsCommand)
-	}
 
 	embed := &discordgo.MessageEmbed{
 		Title:  "Amputation Stats",
