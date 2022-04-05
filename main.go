@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	cfg "github.com/golobby/config/v3"
@@ -32,7 +33,8 @@ var (
 		&bot.MessageEvent{},
 	}
 
-	sqlitePath string = "/var/go-discord-amputator/local.db"
+	sqlitePath      string        = "/var/go-discord-amputator/local.db"
+	connMaxLifetime time.Duration = time.Hour
 )
 
 func init() {
@@ -95,6 +97,12 @@ func main() {
 	if err != nil {
 		log.Fatal("unable to connect to database (using "+dbType+"), err: ", err)
 	}
+
+	dbInstance, err := db.DB()
+	if err != nil {
+		log.Fatal("unable to configure db: ", err)
+	}
+	dbInstance.SetConnMaxLifetime(connMaxLifetime)
 
 	log.Info("using ", dbType, " for the database")
 
