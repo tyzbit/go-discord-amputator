@@ -1,7 +1,7 @@
 package bot
 
 type botStats struct {
-	MessagesActedOn     int64 `pretty:"Messages Seen"`
+	MessagesActedOn     int64 `pretty:"Messages Acted On"`
 	MessagesSent        int64 `pretty:"Messages Sent"`
 	CallsToAmputatorAPI int64 `pretty:"Calls to Amputator API"`
 	URLsAmputated       int64 `pretty:"URLs Amputated"`
