@@ -3,6 +3,7 @@ package bot
 import (
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	log "github.com/sirupsen/logrus"
@@ -10,9 +11,10 @@ import (
 )
 
 type AmputatorBot struct {
-	DB     *gorm.DB
-	DG     *discordgo.Session
-	Config AmputatorBotConfig
+	DB         *gorm.DB
+	DG         *discordgo.Session
+	Config     AmputatorBotConfig
+	StartingUp bool
 }
 
 type AmputatorBotConfig struct {
@@ -31,6 +33,15 @@ func (bot *AmputatorBot) BotReady(s *discordgo.Session, r *discordgo.Ready) {
 		err := bot.registerOrUpdateGuild(s, g)
 		if err != nil {
 			log.Errorf("unable to register or update guild: %v", err)
+		}
+	}
+
+	if bot.StartingUp {
+		time.Sleep(time.Second * 10)
+		bot.StartingUp = false
+		err := bot.updateServersWatched(s)
+		if err != nil {
+			log.Error("unable to update servers watched")
 		}
 	}
 }

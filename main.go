@@ -116,9 +116,10 @@ func main() {
 	// it for controlling the bot. db is the database object, dg is the
 	// discordgo object.
 	ampBot := bot.AmputatorBot{
-		DB:     db,
-		DG:     dg,
-		Config: config,
+		DB:         db,
+		DG:         dg,
+		Config:     config,
+		StartingUp: true,
 	}
 
 	// Set up DB if necessary

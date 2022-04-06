@@ -163,20 +163,23 @@ func (bot *AmputatorBot) setServerConfig(s *discordgo.Session, m *discordgo.Mess
 // updateServersWatched updates the servers watched value
 // in both the local bot stats and in the database. It is allowed to fail.
 func (bot *AmputatorBot) updateServersWatched(s *discordgo.Session) error {
-	stats := bot.getGlobalStats()
+	var serversWatched int64
+	bot.DB.Model(&ServerRegistration{}).Where(&ServerRegistration{}).Count(&serversWatched)
 
 	updateStatusData := &discordgo.UpdateStatusData{Status: "online"}
 	updateStatusData.Activities = make([]*discordgo.Activity, 1)
 	updateStatusData.Activities[0] = &discordgo.Activity{
-		Name: fmt.Sprintf("%v servers", stats.ServersWatched),
+		Name: fmt.Sprintf("%v servers", serversWatched),
 		Type: discordgo.ActivityTypeWatching,
 		URL:  amputatorRepoUrl,
 	}
 
-	log.Debug("updating discord bot status")
-	err := s.UpdateStatusComplex(*updateStatusData)
-	if err != nil {
-		return fmt.Errorf("unable to update discord bot status: %w", err)
+	if !bot.StartingUp {
+		log.Debug("updating discord bot status")
+		err := s.UpdateStatusComplex(*updateStatusData)
+		if err != nil {
+			return fmt.Errorf("unable to update discord bot status: %w", err)
+		}
 	}
 
 	return nil
