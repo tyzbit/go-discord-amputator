@@ -41,6 +41,10 @@ func (bot *AmputatorBot) getGlobalStats() botStats {
 			fmt.Sprintf("%v", topDomains[i].Count) + "\n"
 	}
 
+	if topDomainsFormatted == "" {
+		topDomainsFormatted = "none"
+	}
+
 	return botStats{
 		MessagesActedOn:     MessagesActedOn,
 		MessagesSent:        MessagesSent,
@@ -72,6 +76,10 @@ func (bot *AmputatorBot) getServerStats(serverId string) botStats {
 	for i := 0; i < 5 && i < len(topDomains); i++ {
 		topDomainsFormatted = topDomainsFormatted + topDomains[i].ResponseDomainName + ": " +
 			fmt.Sprintf("%v", topDomains[i].Count) + "\n"
+	}
+
+	if topDomainsFormatted == "" {
+		topDomainsFormatted = "none"
 	}
 
 	return botStats{
