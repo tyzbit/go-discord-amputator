@@ -89,56 +89,79 @@ func (bot *AmputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 	// the amputationRequestUrls and the amputationResponseUrls.
 	ampEventUUID := uuid.New().String()
 
-	// Create the list of URLs requested for this call to the Amputator API
-	var ampRequestUrls []URLInfo
+	var amputations []Amputation
 	for _, url := range urls {
 		domainName, err := getDomainName(url)
 		if err != nil {
-			log.Warn("unable to get domain name for url: ", url)
-			domainName = ""
+			log.Error("unable to get domain name for url: ", url)
 		}
 
-		ampRequestUrls = append(ampRequestUrls, URLInfo{
-			UUID:                uuid.New().String(),
-			AmputationEventUUID: ampEventUUID,
-			Type:                "request",
-			URL:                 url,
-			DomainName:          domainName,
-		})
-	}
+		cachedAmputations := []Amputation{}
+		bot.DB.Model(&Amputation{}).Where(&Amputation{RequestURL: url, Cached: false}).Find(&cachedAmputations)
+		var responseUrl, responseDomainName string
 
-	// initialize and call the amputator API
-	amputator := goamputate.AmputatorBot{}
-	amputatedLinks, err := amputator.Amputate(urls, map[string]string{
-		"gac": fmt.Sprintf("%v", ServerConfig.GuessAndCheck),
-		"md":  fmt.Sprintf("%v", ServerConfig.MaxDepth),
-	})
+		for _, cachedAmputation := range cachedAmputations {
+			if cachedAmputation.ResponseURL != "" && cachedAmputation.ResponseDomainName != "" {
+				responseUrl = cachedAmputation.ResponseURL
+				responseDomainName = cachedAmputation.ResponseDomainName
+			}
+		}
 
-	if err != nil || len(amputatedLinks) == 0 {
-		bot.sendMessage(s, ServerConfig.UseEmbed, ServerConfig.ReplyToOriginalMessage,
-			m.Message, &discordgo.MessageEmbed{
-				Title:       "Problem Amputating",
-				Description: "Sorry, I couldn't amputate that link.",
+		if responseUrl != "" && responseDomainName != "" {
+			log.Debug("url was already cached: ", url)
+			// We have already amputated this URL, so save the response
+			amputations = append(amputations, Amputation{
+				UUID:                uuid.New().String(),
+				AmputationEventUUID: ampEventUUID,
+				RequestURL:          url,
+				RequestDomainName:   domainName,
+				ResponseURL:         responseUrl,
+				ResponseDomainName:  responseDomainName,
+				Cached:              true,
 			})
-		return err
-	}
-
-	// Create the list of URLs we got back for this call to the Amputator API
-	var ampResponseUrls []URLInfo
-	for _, url := range amputatedLinks {
-		domainName, err := getDomainName(url)
-		if err != nil {
-			log.Warn("unable to get domain name for url: ", url)
-			domainName = ""
+			continue
 		}
 
-		ampResponseUrls = append(ampResponseUrls, URLInfo{
+		// We have not already amputated this URL, so build an object
+		// for doing so.
+		log.Debug("url was not cached: ", url)
+		amputations = append(amputations, Amputation{
 			UUID:                uuid.New().String(),
-			Type:                "response",
-			DomainName:          domainName,
 			AmputationEventUUID: ampEventUUID,
-			URL:                 url,
+			RequestURL:          url,
+			RequestDomainName:   domainName,
+			Cached:              false,
 		})
+	}
+
+	var amputatedLinks []string
+	for i, amputation := range amputations {
+		if amputation.ResponseURL == "" {
+			log.Debug("need to call amputator api for ", amputation.RequestURL)
+			amputatedUrls, err := goamputate.Amputate([]string{amputation.RequestURL}, map[string]string{
+				"gac": fmt.Sprintf("%v", ServerConfig.GuessAndCheck),
+				"md":  fmt.Sprintf("%v", ServerConfig.MaxDepth),
+			})
+			if err != nil {
+				log.Error("error calling amputator api: ", err)
+				continue
+			}
+			if !(len(amputatedUrls) == 1) {
+				log.Errorf("received %v urls from goamputate, expected 1", len(amputatedUrls))
+				continue
+			}
+			domainName, err := getDomainName(amputatedUrls[0])
+			if err != nil {
+				log.Errorf("unable to get domain name for url: %v", amputation.ResponseURL)
+			}
+			amputations[i].ResponseURL = amputatedUrls[0]
+			amputations[i].ResponseDomainName = domainName
+			amputatedLinks = append(amputatedLinks, amputatedUrls[0])
+			continue
+		}
+		// We have a response URL, so add that to the links to be used
+		// in the message.
+		amputatedLinks = append(amputatedLinks, amputation.ResponseURL)
 	}
 
 	// Do a lookup for the full guild object
@@ -171,8 +194,7 @@ func (bot *AmputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 		ChannelId:      m.ChannelID,
 		MessageId:      m.ID,
 		ServerId:       guild.ID,
-		RequestURLs:    ampRequestUrls,
-		ResponseURLs:   ampResponseUrls,
+		Amputations:    amputations,
 	})
 
 	if tx.RowsAffected != 1 {

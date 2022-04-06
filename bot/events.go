@@ -10,8 +10,8 @@ import (
 // A MessageEvent is created when we receive a message that
 // requires our attention
 type MessageEvent struct {
-	UUID             string `gorm:"primaryKey"`
 	CreatedAt        time.Time
+	UUID             string `gorm:"primaryKey"`
 	AuthorId         string
 	AuthorUsername   string
 	MessageId        string
@@ -23,26 +23,27 @@ type MessageEvent struct {
 
 // Every successful AmputationEvent will come from a message.
 type AmputationEvent struct {
-	UUID           string `gorm:"primaryKey"`
 	CreatedAt      time.Time
+	UUID           string `gorm:"primaryKey"`
 	AuthorId       string
 	AuthorUsername string
 	ChannelId      string
 	MessageId      string
 	ServerId       string
-	RequestURLs    []URLInfo `gorm:"foreignKey:AmputationEventUUID"`
-	ResponseURLs   []URLInfo `gorm:"foreignKey:AmputationEventUUID"`
+	Amputations    []Amputation `gorm:"foreignKey:AmputationEventUUID"`
 }
 
 // This is the representation of request and response URLs from users or
 // the Amputator API.
-type URLInfo struct {
-	UUID                string `gorm:"primaryKey"`
+type Amputation struct {
 	CreatedAt           time.Time
+	UUID                string `gorm:"primaryKey"`
 	AmputationEventUUID string
-	Type                string
-	URL                 string
-	DomainName          string
+	RequestURL          string
+	RequestDomainName   string
+	ResponseURL         string
+	ResponseDomainName  string
+	Cached              bool
 }
 
 // createMessageEvent logs a given message event into the database.

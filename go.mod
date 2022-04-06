@@ -7,7 +7,7 @@ require (
 	github.com/joho/godotenv v1.4.0
 	github.com/mvdan/xurls v1.1.0
 	github.com/sirupsen/logrus v1.8.1
-	github.com/tyzbit/go-amputate v0.0.0-20220327163021-3e89b4ec86a8
+	github.com/tyzbit/go-amputate v0.0.0-20220405230648-d8b4ceddadf3
 )
 
 require (
@@ -33,5 +33,5 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gorilla/websocket v1.4.2 // indirect
 	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
-	golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886 // indirect
+	golang.org/x/sys v0.0.0-20220405210540-1e041c57c461 // indirect
 )

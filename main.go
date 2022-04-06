@@ -28,7 +28,7 @@ var (
 	allSchemaTypes = []interface{}{
 		&bot.ServerRegistration{},
 		&bot.ServerConfig{},
-		&bot.URLInfo{},
+		&bot.Amputation{},
 		&bot.AmputationEvent{},
 		&bot.MessageEvent{},
 	}
