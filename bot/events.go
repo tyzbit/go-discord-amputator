@@ -17,7 +17,7 @@ type MessageEvent struct {
 	MessageId        string
 	Command          string
 	ChannelId        string
-	ServerId         string
+	ServerID         string
 	AmputationEvents []AmputationEvent `gorm:"foreignKey:UUID"`
 }
 
@@ -29,7 +29,7 @@ type AmputationEvent struct {
 	AuthorUsername string
 	ChannelId      string
 	MessageId      string
-	ServerId       string
+	ServerID       string
 	Amputations    []Amputation `gorm:"foreignKey:AmputationEventUUID"`
 }
 
@@ -39,6 +39,7 @@ type Amputation struct {
 	CreatedAt           time.Time
 	UUID                string `gorm:"primaryKey"`
 	AmputationEventUUID string
+	ServerID            string
 	RequestURL          string
 	RequestDomainName   string
 	ResponseURL         string
@@ -56,6 +57,6 @@ func (bot *AmputatorBot) createMessageEvent(c string, m *discordgo.Message) {
 		MessageId:      m.ID,
 		Command:        c,
 		ChannelId:      m.ChannelID,
-		ServerId:       m.GuildID,
+		ServerID:       m.GuildID,
 	})
 }

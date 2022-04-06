@@ -77,6 +77,12 @@ func (bot *AmputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 		return nil
 	}
 
+	// Do a lookup for the full guild object
+	guild, gErr := s.Guild(m.GuildID)
+	if gErr != nil {
+		return fmt.Errorf("unable to look up guild by id: %v", m.GuildID)
+	}
+
 	xurlsStrict := xurls.Strict
 	urls := xurlsStrict.FindAllString(m.Content, -1)
 	if len(urls) == 0 {
@@ -96,10 +102,13 @@ func (bot *AmputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 			log.Error("unable to get domain name for url: ", url)
 		}
 
+		// See if there is a response URL for a given request URL in the database.
 		cachedAmputations := []Amputation{}
 		bot.DB.Model(&Amputation{}).Where(&Amputation{RequestURL: url, Cached: false}).Find(&cachedAmputations)
 		var responseUrl, responseDomainName string
 
+		// If we have a response, create a new Amputation with it,
+		// marking it as cached.
 		for _, cachedAmputation := range cachedAmputations {
 			if cachedAmputation.ResponseURL != "" && cachedAmputation.ResponseDomainName != "" {
 				responseUrl = cachedAmputation.ResponseURL
@@ -113,6 +122,7 @@ func (bot *AmputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 			amputations = append(amputations, Amputation{
 				UUID:                uuid.New().String(),
 				AmputationEventUUID: ampEventUUID,
+				ServerID:            guild.ID,
 				RequestURL:          url,
 				RequestDomainName:   domainName,
 				ResponseURL:         responseUrl,
@@ -128,6 +138,7 @@ func (bot *AmputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 		amputations = append(amputations, Amputation{
 			UUID:                uuid.New().String(),
 			AmputationEventUUID: ampEventUUID,
+			ServerID:            guild.ID,
 			RequestURL:          url,
 			RequestDomainName:   domainName,
 			Cached:              false,
@@ -164,12 +175,6 @@ func (bot *AmputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 		amputatedLinks = append(amputatedLinks, amputation.ResponseURL)
 	}
 
-	// Do a lookup for the full guild object
-	guild, gErr := s.Guild(m.GuildID)
-	if gErr != nil {
-		return fmt.Errorf("unable to look up guild by id: %v", m.GuildID)
-	}
-
 	plural := ""
 	if len(amputatedLinks) > 1 {
 		plural = "s"
@@ -193,7 +198,7 @@ func (bot *AmputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 		AuthorUsername: m.Author.Username,
 		ChannelId:      m.ChannelID,
 		MessageId:      m.ID,
-		ServerId:       guild.ID,
+		ServerID:       guild.ID,
 		Amputations:    amputations,
 	})
 
