@@ -33,7 +33,7 @@ var (
 		&bot.MessageEvent{},
 	}
 
-	sqlitePath      string        = "/var/go-discord-amputator/local.db"
+	sqlitePath      string        = "/var/go-discord-amputator/local.sqlite"
 	connMaxLifetime time.Duration = time.Hour
 )
 

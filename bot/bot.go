@@ -49,6 +49,10 @@ func (bot *AmputatorBot) BotReady(s *discordgo.Session, r *discordgo.Ready) {
 // GuildCreate is called whenever the bot joins a new guild. It is also lazily called upon initial
 // connection to Discord.
 func (bot *AmputatorBot) GuildCreate(s *discordgo.Session, gc *discordgo.GuildCreate) {
+	if gc.Guild.Unavailable {
+		return
+	}
+
 	err := bot.registerOrUpdateGuild(s, gc.Guild)
 	if err != nil {
 		log.Errorf("unable to register or update guild: %v", err)
@@ -87,7 +91,7 @@ func (bot *AmputatorBot) MessageCreate(s *discordgo.Session, m *discordgo.Messag
 		}
 
 		if err != nil {
-			log.Warn("problem handling ", configCommand, " command: %w", err)
+			log.Warn("problem handling ", configCommand, " command: ", err)
 		}
 		return
 	}
