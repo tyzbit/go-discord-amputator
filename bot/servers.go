@@ -93,14 +93,19 @@ func (bot *AmputatorBot) getServerConfig(guildId string) ServerConfig {
 // setServerConfig sets a single config setting for the calling server. Syntax:
 // (commandPrefix) config [setting] [value]
 func (bot *AmputatorBot) setServerConfig(s *discordgo.Session, m *discordgo.Message) error {
-	sc := bot.getServerConfig(m.GuildID)
-	if sc == defaultServerConfig {
-		return fmt.Errorf("unable to look up server config for guild: %v", m.GuildID)
-	}
-
+	// Look up the guild from the message
 	guild, err := s.Guild(m.GuildID)
 	if err != nil {
 		return fmt.Errorf("unable to look up guild by id: %v", m.GuildID)
+	}
+
+	// Get the server config. If empty, register the server.
+	sc := bot.getServerConfig(m.GuildID)
+	if sc == defaultServerConfig {
+		err = bot.registerOrUpdateGuild(s, guild)
+		if err != nil {
+			return fmt.Errorf("unable to register guild: %w", err)
+		}
 	}
 
 	command := strings.Split(m.Content, " ")
