@@ -2,4 +2,4 @@
 .DS_Store
 vendor/
 go-discord-amputator
-local.sqlite
+local.db
