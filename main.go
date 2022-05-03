@@ -143,7 +143,7 @@ func main() {
 	// some intents require additional permissions, which must be granted
 	// to the bot when it's added or after the fact by a guild admin.
 	discordIntents := discordgo.IntentsGuildMessages |
-		discordgo.IntentsDirectMessages
+		discordgo.IntentsGuilds | discordgo.IntentsDirectMessages
 	dg.Identify.Intents = discordIntents
 
 	// Open a websocket connection to Discord and begin listening.
