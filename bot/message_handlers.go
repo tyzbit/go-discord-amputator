@@ -3,6 +3,7 @@ package bot
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/uuid"
@@ -10,6 +11,22 @@ import (
 	log "github.com/sirupsen/logrus"
 	goamputate "github.com/tyzbit/go-amputate"
 )
+
+// typeInChannel sets the typing indicator for a channel. The indicator is cleared
+// when a message is sent.
+func typeInChannel(channel chan bool, s *discordgo.Session, channelID string) {
+	for {
+		select {
+		case <-channel:
+			return
+		default:
+			if err := s.ChannelTyping(channelID); err != nil {
+				log.Error("unable to set typing indicator: ", err)
+			}
+			time.Sleep(time.Second * 5)
+		}
+	}
+}
 
 // handleMessageWithStats takes a discord session and a user ID and sends a
 // message to the user with stats about the bot.
@@ -71,6 +88,8 @@ func (bot *AmputatorBot) handleMessageWithStats(s *discordgo.Session, m *discord
 // calls go-amputator with a []string of URLs parsed from the message.
 // It then sends an embed with the resulting amputated URLs.
 func (bot *AmputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *discordgo.MessageCreate) error {
+	typingStop := make(chan bool, 1)
+	go typeInChannel(typingStop, s, m.ChannelID)
 	ServerConfig := bot.getServerConfig(m.GuildID)
 	if !ServerConfig.AmputationEnabled {
 		log.Info("URLs were not amputated because automatic amputation is not enabled")
@@ -189,6 +208,7 @@ func (bot *AmputatorBot) handleMessageWithAmpUrls(s *discordgo.Session, m *disco
 	log.Debug("sending amputate message response in ",
 		guild.Name, "(", m.GuildID, "), calling user: ",
 		m.Author.Username, "(", m.Author.ID, ")")
+	typingStop <- true
 	bot.sendMessage(s, ServerConfig.UseEmbed, ServerConfig.ReplyToOriginalMessage, m.Message, embed)
 
 	// Create a call to Amputator API event
