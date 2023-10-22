@@ -17,6 +17,9 @@ jobs:
         id: extract-tag
         run: echo "TAG_NAME=$(echo $GITHUB_REF | sed 's/refs\/tags\///')" >> $GITHUB_ENV
 
+      - name: Login to GitHub Container Registry
+        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+
       - name: Build and push Docker image
         run: |
           docker build -t ghcr.io/${{ github.repository }}:${{ env.TAG_NAME}} .
