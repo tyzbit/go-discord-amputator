@@ -1,0 +1,24 @@
+name: Build and Push Docker Images with Version Tag
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Extract tag name
+        id: extract-tag
+        run: echo "::set-output name=tag::$(echo $GITHUB_REF | sed 's/refs\/tags\///')"
+
+      - name: Build and push Docker image
+        run: |
+          tag_name="${{ steps.extract-tag.outputs.tag }}"
+          docker build -t ghcr.io/${{ github.repository }}:${tag_name} .
+          docker push ghcr.io/${{ github.repository }}:${tag_name}
