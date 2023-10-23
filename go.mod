@@ -6,7 +6,7 @@ require (
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/gin-gonic/gin v1.7.7
 	github.com/golobby/config/v3 v3.3.4
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.3.1
 	github.com/joho/godotenv v1.4.0
 	github.com/mvdan/xurls v1.1.0
 	github.com/sirupsen/logrus v1.8.1
