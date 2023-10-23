@@ -77,7 +77,7 @@ func (s *Session) Open() error {
 	s.log(LogInformational, "connecting to gateway %s", s.gateway)
 	header := http.Header{}
 	header.Add("accept-encoding", "zlib")
-	s.wsConn, _, err = websocket.DefaultDialer.Dial(s.gateway, header)
+	s.wsConn, _, err = s.Dialer.Dial(s.gateway, header)
 	if err != nil {
 		s.log(LogError, "error connecting to gateway %s, %s", s.gateway, err)
 		s.gateway = "" // clear cached gateway
@@ -320,7 +320,7 @@ func (s *Session) heartbeat(wsConn *websocket.Conn, listening <-chan interface{}
 	}
 }
 
-// UpdateStatusData ia provided to UpdateStatusComplex()
+// UpdateStatusData is provided to UpdateStatusComplex()
 type UpdateStatusData struct {
 	IdleSince  *int        `json:"since"`
 	Activities []*Activity `json:"activities"`
@@ -359,6 +359,14 @@ func newUpdateStatusData(idle int, activityType ActivityType, name, url string) 
 // if otherwise, set status to active, and no activity.
 func (s *Session) UpdateGameStatus(idle int, name string) (err error) {
 	return s.UpdateStatusComplex(*newUpdateStatusData(idle, ActivityTypeGame, name, ""))
+}
+
+// UpdateWatchStatus is used to update the user's watch status.
+// If idle>0 then set status to idle.
+// If name!="" then set movie/stream.
+// if otherwise, set status to active, and no activity.
+func (s *Session) UpdateWatchStatus(idle int, name string) (err error) {
+	return s.UpdateStatusComplex(*newUpdateStatusData(idle, ActivityTypeWatching, name, ""))
 }
 
 // UpdateStreamingStatus is used to update the user's streaming status.
@@ -409,10 +417,13 @@ func (s *Session) UpdateStatusComplex(usd UpdateStatusData) (err error) {
 }
 
 type requestGuildMembersData struct {
-	GuildIDs  []string `json:"guild_id"`
-	Query     string   `json:"query"`
-	Limit     int      `json:"limit"`
-	Presences bool     `json:"presences"`
+	// TODO: Deprecated. Use string instead of []string
+	GuildIDs  []string  `json:"guild_id"`
+	Query     *string   `json:"query,omitempty"`
+	UserIDs   *[]string `json:"user_ids,omitempty"`
+	Limit     int       `json:"limit"`
+	Nonce     string    `json:"nonce,omitempty"`
+	Presences bool      `json:"presences"`
 }
 
 type requestGuildMembersOp struct {
@@ -425,16 +436,21 @@ type requestGuildMembersOp struct {
 // guildID   : Single Guild ID to request members of
 // query     : String that username starts with, leave empty to return all members
 // limit     : Max number of items to return, or 0 to request all members matched
+// nonce     : Nonce to identify the Guild Members Chunk response
 // presences : Whether to request presences of guild members
-func (s *Session) RequestGuildMembers(guildID string, query string, limit int, presences bool) (err error) {
-	data := requestGuildMembersData{
-		GuildIDs:  []string{guildID},
-		Query:     query,
-		Limit:     limit,
-		Presences: presences,
-	}
-	err = s.requestGuildMembers(data)
-	return
+func (s *Session) RequestGuildMembers(guildID, query string, limit int, nonce string, presences bool) error {
+	return s.RequestGuildMembersBatch([]string{guildID}, query, limit, nonce, presences)
+}
+
+// RequestGuildMembersList requests guild members from the gateway
+// The gateway responds with GuildMembersChunk events
+// guildID   : Single Guild ID to request members of
+// userIDs   : IDs of users to fetch
+// limit     : Max number of items to return, or 0 to request all members matched
+// nonce     : Nonce to identify the Guild Members Chunk response
+// presences : Whether to request presences of guild members
+func (s *Session) RequestGuildMembersList(guildID string, userIDs []string, limit int, nonce string, presences bool) error {
+	return s.RequestGuildMembersBatchList([]string{guildID}, userIDs, limit, nonce, presences)
 }
 
 // RequestGuildMembersBatch requests guild members from the gateway
@@ -442,12 +458,37 @@ func (s *Session) RequestGuildMembers(guildID string, query string, limit int, p
 // guildID   : Slice of guild IDs to request members of
 // query     : String that username starts with, leave empty to return all members
 // limit     : Max number of items to return, or 0 to request all members matched
+// nonce     : Nonce to identify the Guild Members Chunk response
 // presences : Whether to request presences of guild members
-func (s *Session) RequestGuildMembersBatch(guildIDs []string, query string, limit int, presences bool) (err error) {
+//
+// NOTE: this function is deprecated, please use RequestGuildMembers instead
+func (s *Session) RequestGuildMembersBatch(guildIDs []string, query string, limit int, nonce string, presences bool) (err error) {
 	data := requestGuildMembersData{
 		GuildIDs:  guildIDs,
-		Query:     query,
+		Query:     &query,
 		Limit:     limit,
+		Nonce:     nonce,
+		Presences: presences,
+	}
+	err = s.requestGuildMembers(data)
+	return
+}
+
+// RequestGuildMembersBatchList requests guild members from the gateway
+// The gateway responds with GuildMembersChunk events
+// guildID   : Slice of guild IDs to request members of
+// userIDs   : IDs of users to fetch
+// limit     : Max number of items to return, or 0 to request all members matched
+// nonce     : Nonce to identify the Guild Members Chunk response
+// presences : Whether to request presences of guild members
+//
+// NOTE: this function is deprecated, please use RequestGuildMembersList instead
+func (s *Session) RequestGuildMembersBatchList(guildIDs []string, userIDs []string, limit int, nonce string, presences bool) (err error) {
+	data := requestGuildMembersData{
+		GuildIDs:  guildIDs,
+		UserIDs:   &userIDs,
+		Limit:     limit,
+		Nonce:     nonce,
 		Presences: presences,
 	}
 	err = s.requestGuildMembers(data)
