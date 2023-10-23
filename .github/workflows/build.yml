@@ -22,13 +22,11 @@ jobs:
       - name: Login to GitHub Container Registry
         run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
-      - name: Build and push Docker image
-        run: |
-          docker build -t ghcr.io/${{ github.repository }}:${{ env.TAG_NAME}} .
-          docker push ghcr.io/${{ github.repository }}:${{ env.TAG_NAME}}
-
       - name: Build and push 'latest' tag on main branch
-        if: github.ref == 'refs/heads/main'
         run: |
           docker build -t ghcr.io/${{ github.repository }}:latest .
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            docker tag ghcr.io/${{ github.repository }}:latest ghcr.io/${{ github.repository }}:${{ env.TAG_NAME }}
+            docker push ghcr.io/${{ github.repository }}:${{ env.TAG_NAME }}
+          fi
           docker push ghcr.io/${{ github.repository }}:latest
