@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/gin-gonic/gin v1.9.1
-	github.com/golobby/config/v3 v3.3.4
+	github.com/golobby/config/v3 v3.4.2
 	github.com/google/uuid v1.3.1
 	github.com/joho/godotenv v1.4.0
 	github.com/mvdan/xurls v1.1.0
@@ -17,7 +17,7 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v0.4.1 // indirect
+	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/blockloop/scan v1.3.0 // indirect
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
@@ -28,9 +28,9 @@ require (
 	github.com/go-playground/validator/v10 v10.14.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/golang/protobuf v1.5.0 // indirect
-	github.com/golobby/cast v1.3.0 // indirect
-	github.com/golobby/dotenv v1.3.1 // indirect
-	github.com/golobby/env/v2 v2.2.0 // indirect
+	github.com/golobby/cast v1.3.3 // indirect
+	github.com/golobby/dotenv v1.3.2 // indirect
+	github.com/golobby/env/v2 v2.2.4 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.4 // indirect
 	github.com/jmoiron/sqlx v1.3.4 // indirect
