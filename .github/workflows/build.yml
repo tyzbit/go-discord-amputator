@@ -2,6 +2,8 @@ name: Build and Push Docker Images with Version Tag
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "*"
 
@@ -11,7 +13,7 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
 
       - name: Extract tag name
         id: extract-tag
@@ -24,3 +26,9 @@ jobs:
         run: |
           docker build -t ghcr.io/${{ github.repository }}:${{ env.TAG_NAME}} .
           docker push ghcr.io/${{ github.repository }}:${{ env.TAG_NAME}}
+
+      - name: Build and push 'latest' tag on main branch
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker build -t ghcr.io/${{ github.repository }}:latest .
+          docker push ghcr.io/${{ github.repository }}:latest
