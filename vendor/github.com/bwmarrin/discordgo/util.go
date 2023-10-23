@@ -2,7 +2,6 @@ package discordgo
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -30,7 +29,7 @@ func MultipartBodyWithJSON(data interface{}, files []*File) (requestContentType 
 	body := &bytes.Buffer{}
 	bodywriter := multipart.NewWriter(body)
 
-	payload, err := json.Marshal(data)
+	payload, err := Marshal(data)
 	if err != nil {
 		return
 	}
@@ -52,7 +51,7 @@ func MultipartBodyWithJSON(data interface{}, files []*File) (requestContentType 
 
 	for i, file := range files {
 		h := make(textproto.MIMEHeader)
-		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file%d"; filename="%s"`, i, quoteEscaper.Replace(file.Name)))
+		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="files[%d]"; filename="%s"`, i, quoteEscaper.Replace(file.Name)))
 		contentType := file.ContentType
 		if contentType == "" {
 			contentType = "application/octet-stream"
@@ -101,6 +100,22 @@ func bannerURL(bannerHash, staticBannerURL, animatedBannerURL, size string) stri
 		URL = animatedBannerURL
 	} else {
 		URL = staticBannerURL
+	}
+
+	if size != "" {
+		return URL + "?size=" + size
+	}
+	return URL
+}
+
+func iconURL(iconHash, staticIconURL, animatedIconURL, size string) string {
+	var URL string
+	if iconHash == "" {
+		return ""
+	} else if strings.HasPrefix(iconHash, "a_") {
+		URL = animatedIconURL
+	} else {
+		URL = staticIconURL
 	}
 
 	if size != "" {
