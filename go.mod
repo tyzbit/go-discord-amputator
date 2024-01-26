@@ -13,7 +13,7 @@ require (
 	github.com/tyzbit/go-amputate v0.0.0-20220405230648-d8b4ceddadf3
 	gorm.io/driver/mysql v1.5.2
 	gorm.io/driver/sqlite v1.5.4
-	gorm.io/gorm v1.25.5
+	gorm.io/gorm v1.25.6
 )
 
 require (
