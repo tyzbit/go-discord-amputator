@@ -389,6 +389,26 @@ func (s *Session) UpdateListeningStatus(name string) (err error) {
 	return s.UpdateStatusComplex(*newUpdateStatusData(0, ActivityTypeListening, name, ""))
 }
 
+// UpdateCustomStatus is used to update the user's custom status.
+// If state!="" then set the custom status.
+// Else, set user to active and remove the custom status.
+func (s *Session) UpdateCustomStatus(state string) (err error) {
+	data := UpdateStatusData{
+		Status: "online",
+	}
+
+	if state != "" {
+		// Discord requires a non-empty activity name, therefore we provide "Custom Status" as a placeholder.
+		data.Activities = []*Activity{{
+			Name:  "Custom Status",
+			Type:  ActivityTypeCustom,
+			State: state,
+		}}
+	}
+
+	return s.UpdateStatusComplex(data)
+}
+
 // UpdateStatusComplex allows for sending the raw status update data untouched by discordgo.
 func (s *Session) UpdateStatusComplex(usd UpdateStatusData) (err error) {
 	// The comment does say "untouched by discordgo", but we might need to lie a bit here.
@@ -493,6 +513,21 @@ func (s *Session) RequestGuildMembersBatchList(guildIDs []string, userIDs []stri
 	}
 	err = s.requestGuildMembers(data)
 	return
+}
+
+// GatewayWriteStruct allows for sending raw gateway structs over the gateway.
+func (s *Session) GatewayWriteStruct(data interface{}) (err error) {
+	s.RLock()
+	defer s.RUnlock()
+	if s.wsConn == nil {
+		return ErrWSNotFound
+	}
+
+	s.wsMutex.Lock()
+	err = s.wsConn.WriteJSON(data)
+	s.wsMutex.Unlock()
+
+	return err
 }
 
 func (s *Session) requestGuildMembers(data requestGuildMembersData) (err error) {
@@ -862,17 +897,18 @@ func (s *Session) reconnect() {
 				// However, there seems to be cases where something "weird"
 				// happens.  So we're doing this for now just to improve
 				// stability in those edge cases.
-				s.RLock()
-				defer s.RUnlock()
-				for _, v := range s.VoiceConnections {
+				if s.ShouldReconnectVoiceOnSessionError {
+					s.RLock()
+					defer s.RUnlock()
+					for _, v := range s.VoiceConnections {
 
-					s.log(LogInformational, "reconnecting voice connection to guild %s", v.GuildID)
-					go v.reconnect()
+						s.log(LogInformational, "reconnecting voice connection to guild %s", v.GuildID)
+						go v.reconnect()
 
-					// This is here just to prevent violently spamming the
-					// voice reconnects
-					time.Sleep(1 * time.Second)
-
+						// This is here just to prevent violently spamming the
+						// voice reconnects
+						time.Sleep(1 * time.Second)
+					}
 				}
 				return
 			}
