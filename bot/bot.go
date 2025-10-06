@@ -63,7 +63,7 @@ func (bot *AmputatorBot) GuildCreate(s *discordgo.Session, gc *discordgo.GuildCr
 // message is created on any channel that the authenticated bot has access to.
 func (bot *AmputatorBot) MessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// This is a message the bot created itself
-	if m.Author.ID == s.State.User.ID {
+	if m.Author != nil && s.State.User != nil && m.Author.ID == s.State.User.ID {
 		bot.createMessageEvent("", m.Message)
 		return
 	}
