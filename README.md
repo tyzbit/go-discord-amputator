@@ -1,3 +1,6 @@
+# ARCHIVED
+This project is no longer supported.
+
 # go-discord-amputator
 Discord Amputator bot rewritten in Go
 
